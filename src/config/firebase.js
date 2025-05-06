@@ -341,10 +341,7 @@ Collections:
 3. tests
    - id: string
    - name: string
-   - code: string
-   - description: string
    - category: string
-   - isActive: boolean
    - basePrice: number
    - createdAt: timestamp
 

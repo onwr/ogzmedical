@@ -1,27 +1,35 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, where } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, where, getDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import AdminLayout from '../../components/admin/AdminLayout';
 
 const Tests = () => {
   const [tests, setTests] = useState([]);
   const [dealers, setDealers] = useState([]);
+  const [testGroups, setTestGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
+  const [newGroupTitle, setNewGroupTitle] = useState('');
   const [selectedDealer, setSelectedDealer] = useState(null);
+  const [priceUpdates, setPriceUpdates] = useState({});
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
-    description: '',
     category: '',
-    basePrice: '',
-    isActive: true
+    groupId: '',
+    basePrice: ''
   });
+  const [packages, setPackages] = useState([]);
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [newPackageName, setNewPackageName] = useState('');
+  const [newPackageTests, setNewPackageTests] = useState([]);
 
   useEffect(() => {
     fetchTests();
     fetchDealers();
+    fetchTestGroups();
+    fetchPackages();
   }, []);
 
   const fetchTests = async () => {
@@ -32,11 +40,46 @@ const Tests = () => {
         id: doc.id,
         ...doc.data()
       }));
-      setTests(testsList);
+
+      // Her test için bayi fiyatlarını çek
+      const testsWithPrices = await Promise.all(testsList.map(async (test) => {
+        const dealerPricesQuery = query(
+          collection(db, 'dealerPrices'),
+          where('testId', '==', test.id)
+        );
+        const dealerPricesSnapshot = await getDocs(dealerPricesQuery);
+        
+        const dealerPrices = {};
+        dealerPricesSnapshot.forEach(doc => {
+          const data = doc.data();
+          dealerPrices[data.dealerId] = data.price;
+        });
+
+        return {
+          ...test,
+          dealerPrices
+        };
+      }));
+
+      setTests(testsWithPrices);
     } catch (error) {
       console.error('Error fetching tests:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchTestGroups = async () => {
+    try {
+      const q = query(collection(db, 'testGroups'), orderBy('title'));
+      const querySnapshot = await getDocs(q);
+      const groupsList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setTestGroups(groupsList);
+    } catch (error) {
+      console.error('Error fetching test groups:', error);
     }
   };
 
@@ -54,11 +97,28 @@ const Tests = () => {
     }
   };
 
+  const fetchPackages = async () => {
+    try {
+      const q = query(collection(db, 'packages'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const packagesList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setPackages(packagesList);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (selectedTest) {
-        await updateDoc(doc(db, 'tests', selectedTest.id), formData);
+        await updateDoc(doc(db, 'tests', selectedTest.id), {
+          ...formData,
+          basePrice: Number(formData.basePrice)
+        });
       } else {
         await addDoc(collection(db, 'tests'), {
           ...formData,
@@ -70,11 +130,9 @@ const Tests = () => {
       setSelectedTest(null);
       setFormData({
         name: '',
-        code: '',
-        description: '',
         category: '',
-        basePrice: '',
-        isActive: true
+        groupId: '',
+        basePrice: ''
       });
       fetchTests();
     } catch (error) {
@@ -82,15 +140,28 @@ const Tests = () => {
     }
   };
 
+  const handleAddGroup = async (e) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'testGroups'), {
+        title: newGroupTitle,
+        createdAt: new Date()
+      });
+      setNewGroupTitle('');
+      setIsGroupModalOpen(false);
+      fetchTestGroups();
+    } catch (error) {
+      console.error('Error adding test group:', error);
+    }
+  };
+
   const handleEdit = (test) => {
     setSelectedTest(test);
     setFormData({
       name: test.name,
-      code: test.code,
-      description: test.description,
       category: test.category,
-      basePrice: test.basePrice.toString(),
-      isActive: test.isActive
+      groupId: test.groupId,
+      basePrice: test.basePrice.toString()
     });
     setIsModalOpen(true);
   };
@@ -106,16 +177,81 @@ const Tests = () => {
     }
   };
 
-  const handlePriceUpdate = async (testId, dealerId, price) => {
+  const handlePriceChange = (testId, dealerId, price) => {
+    setPriceUpdates(prev => ({
+      ...prev,
+      [`${dealerId}_${testId}`]: price
+    }));
+  };
+
+  const handlePriceUpdate = async () => {
     try {
-      const priceRef = doc(db, 'dealerPrices', `${dealerId}_${testId}`);
-      await updateDoc(priceRef, {
-        price: Number(price),
-        updatedAt: new Date()
+      const batch = writeBatch(db);
+      
+      Object.entries(priceUpdates).forEach(([key, price]) => {
+        const [dealerId, testId] = key.split('_');
+        const priceRef = doc(db, 'dealerPrices', key);
+        
+        if (price) {
+          batch.set(priceRef, {
+            dealerId,
+            testId,
+            price: Number(price),
+            updatedAt: new Date()
+          });
+        } else {
+          batch.delete(priceRef);
+        }
       });
+
+      await batch.commit();
+      setPriceUpdates({});
       fetchTests();
     } catch (error) {
-      console.error('Error updating price:', error);
+      console.error('Error updating prices:', error);
+    }
+  };
+
+  const handleDealerChange = (dealerId) => {
+    setSelectedDealer(dealerId);
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    if (window.confirm('Bu grubu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+      try {
+        await deleteDoc(doc(db, 'testGroups', groupId));
+        fetchTestGroups();
+      } catch (error) {
+        console.error('Error deleting group:', error);
+      }
+    }
+  };
+
+  const handleAddPackage = async (e) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'packages'), {
+        name: newPackageName,
+        tests: newPackageTests,
+        createdAt: new Date()
+      });
+      setNewPackageName('');
+      setNewPackageTests([]);
+      setIsPackageModalOpen(false);
+      fetchPackages();
+    } catch (error) {
+      console.error('Error adding package:', error);
+    }
+  };
+
+  const handleDeletePackage = async (packageId) => {
+    if (window.confirm('Bu paketi silmek istediğinizden emin misiniz?')) {
+      try {
+        await deleteDoc(doc(db, 'packages', packageId));
+        fetchPackages();
+      } catch (error) {
+        console.error('Error deleting package:', error);
+      }
     }
   };
 
@@ -129,98 +265,198 @@ const Tests = () => {
     );
   }
 
+  console.log(tests);
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className='space-y-6'>
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Test Yönetimi</h1>
-          <button
-            onClick={() => {
-              setSelectedTest(null);
-              setFormData({
-                name: '',
-                code: '',
-                description: '',
-                category: '',
-                basePrice: '',
-                isActive: true
-              });
-              setIsModalOpen(true);
-            }}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-          >
-            Yeni Test Ekle
-          </button>
+        <div className='flex items-center justify-between'>
+          <h1 className='text-2xl font-semibold text-gray-900'>Test Yönetimi</h1>
+          <div className='flex space-x-3'>
+            <button
+              onClick={() => setIsGroupModalOpen(true)}
+              className='rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700'
+            >
+              Yeni Grup Ekle
+            </button>
+            <button
+              onClick={() => {
+                setSelectedTest(null);
+                setFormData({
+                  name: '',
+                  category: '',
+                  groupId: '',
+                  basePrice: '',
+                });
+                setIsModalOpen(true);
+              }}
+              className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
+            >
+              Yeni Test Ekle
+            </button>
+          </div>
+        </div>
+
+        {/* Dealer Selection */}
+        <div className='rounded-lg bg-white p-4 shadow'>
+          <div className='flex items-center space-x-4'>
+            <label className='text-sm font-medium text-gray-700'>Bayi Seçin:</label>
+            <select
+              value={selectedDealer || ''}
+              onChange={(e) => {
+                setSelectedDealer(e.target.value);
+                setPriceUpdates({});
+              }}
+              className='mt-1 block w-64 rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+            >
+              <option value=''>Bayi Seçin</option>
+              {dealers.map((dealer) => (
+                <option key={dealer.id} value={dealer.id}>
+                  {dealer.name}
+                </option>
+              ))}
+            </select>
+            {selectedDealer && Object.keys(priceUpdates).length > 0 && (
+              <button
+                onClick={handlePriceUpdate}
+                className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
+              >
+                Fiyatları Güncelle
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Groups List */}
+        <div className='rounded-lg bg-white p-4 shadow'>
+          <h2 className='mb-4 text-lg font-medium text-gray-900'>Test Grupları</h2>
+          <div className='flex flex-wrap gap-2'>
+            {testGroups.map((group) => (
+              <div
+                key={group.id}
+                className='flex items-center space-x-2 rounded-lg bg-gray-100 px-3 py-2'
+              >
+                <span className='text-sm font-medium text-gray-700'>{group.title}</span>
+                <button
+                  onClick={() => handleDeleteGroup(group.id)}
+                  className='text-red-600 hover:text-red-900'
+                >
+                  <svg
+                    xmlns='http://www.w3.org/2000/svg'
+                    className='h-4 w-4'
+                    viewBox='0 0 20 20'
+                    fill='currentColor'
+                  >
+                    <path
+                      fillRule='evenodd'
+                      d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z'
+                      clipRule='evenodd'
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Tests Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className='overflow-hidden rounded-lg bg-white shadow'>
+          <table className='min-w-full divide-y divide-gray-200'>
+            <thead className='bg-gray-50'>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Test Bilgisi
+                <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
+                  Test Adı
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Kategori
+                <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
+                  Grup
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Temel Fiyat
-                </th>
-                {dealers.map(dealer => (
-                  <th key={dealer.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {dealer.name} Fiyatı
+                {selectedDealer ? (
+                  <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
+                    {dealers.find((d) => d.id === selectedDealer)?.name} Fiyatı
                   </th>
-                ))}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Durum
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                ) : (
+                  dealers.map((dealer) => (
+                    <th
+                      key={dealer.id}
+                      className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'
+                    >
+                      {dealer.name} Fiyatı
+                    </th>
+                  ))
+                )}
+                <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
                   İşlemler
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className='divide-y divide-gray-200 bg-white'>
               {tests.map((test) => (
                 <tr key={test.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{test.name}</div>
-                    <div className="text-sm text-gray-500">{test.code}</div>
+                  <td className='px-6 py-4 whitespace-nowrap'>
+                    <div className='text-sm font-medium text-gray-900'>{test.name}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{test.category}</div>
+                  <td className='px-6 py-4 whitespace-nowrap'>
+                    <div className='text-sm text-gray-900'>{test.category}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{test.basePrice} TL</div>
-                  </td>
-                  {dealers.map(dealer => (
-                    <td key={dealer.id} className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="number"
-                        value={test.dealerPrices?.[dealer.id] || test.basePrice}
-                        onChange={(e) => handlePriceUpdate(test.id, dealer.id, e.target.value)}
-                        className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
+                  {selectedDealer ? (
+                    <td className='px-6 py-4 whitespace-nowrap'>
+                      <div className='flex items-center space-x-2'>
+                        <span className='text-sm text-gray-500'>
+                          <span className='text-xs text-gray-500'>
+                            ({test.basePrice}₺ Temel Fiyat)
+                          </span>
+                          {test.dealerPrices?.[selectedDealer] ? '' : `(${test.basePrice} TL)`}
+                        </span>
+                        <input
+                          type='number'
+                          value={
+                            priceUpdates[`${selectedDealer}_${test.id}`] !== undefined
+                              ? priceUpdates[`${selectedDealer}_${test.id}`]
+                              : test.dealerPrices?.[selectedDealer] || ''
+                          }
+                          onChange={(e) =>
+                            handlePriceChange(test.id, selectedDealer, e.target.value)
+                          }
+                          className='w-24 rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                          placeholder={test.dealerPrices?.[selectedDealer] || test.basePrice}
+                          disabled={!selectedDealer}
+                        />
+                      </div>
                     </td>
-                  ))}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      test.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {test.isActive ? 'Aktif' : 'Pasif'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  ) : (
+                    dealers.map((dealer) => (
+                      <td key={dealer.id} className='px-6 py-4 whitespace-nowrap'>
+                        <div className='flex items-center space-x-2'>
+                          <span className='text-xs text-gray-500'>
+                            ({test.basePrice}₺ Temel Fiyat)
+                          </span>
+                          <input
+                            type='number'
+                            value={
+                              priceUpdates[`${dealer.id}_${test.id}`] !== undefined
+                                ? priceUpdates[`${dealer.id}_${test.id}`]
+                                : test.dealerPrices?.[dealer.id] || ''
+                            }
+                            onChange={(e) => handlePriceChange(test.id, dealer.id, e.target.value)}
+                            className='w-24 rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                            placeholder={test.dealerPrices?.[dealer.id] || test.basePrice}
+                            disabled={!selectedDealer}
+                          />
+                        </div>
+                      </td>
+                    ))
+                  )}
+                  <td className='px-6 py-4 text-sm font-medium whitespace-nowrap'>
                     <button
                       onClick={() => handleEdit(test)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      className='mr-4 text-blue-600 hover:text-blue-900'
                     >
                       Düzenle
                     </button>
                     <button
                       onClick={() => handleDelete(test.id)}
-                      className="text-red-600 hover:text-red-900"
+                      className='text-red-600 hover:text-red-900'
                     >
                       Sil
                     </button>
@@ -230,87 +466,189 @@ const Tests = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Packages List */}
+        <div className='rounded-lg bg-white p-4 shadow'>
+          <div className='flex items-center justify-between mb-2'>
+            <h2 className='mb-2 text-lg font-medium text-gray-900'>Paketler</h2>
+            <button
+              onClick={() => setIsPackageModalOpen(true)}
+              className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
+            >
+              Yeni Paket Ekle
+            </button>
+          </div>
+          <div className='flex flex-wrap gap-2'>
+            {packages.map((pkg) => (
+              <div key={pkg.id} className='flex items-center space-x-2 rounded-lg bg-gray-100 px-3 py-2'>
+                <span className='text-sm font-medium text-gray-700'>{pkg.name}</span>
+                <span className='text-xs text-gray-500'>({pkg.tests.length} test)</span>
+                <button
+                  onClick={() => handleDeletePackage(pkg.id)}
+                  className='text-red-600 hover:text-red-900'
+                >
+                  <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
+                    <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Modal */}
+      {/* Test Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-medium mb-4">
+        <div className='bg-opacity-75 fixed inset-0 flex items-center justify-center bg-gray-500'>
+          <div className='w-full max-w-md rounded-lg bg-white p-6'>
+            <h2 className='mb-4 text-lg font-medium'>
               {selectedTest ? 'Test Düzenle' : 'Yeni Test Ekle'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className='space-y-4'>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Test Adı</label>
+                <label className='block text-sm font-medium text-gray-700'>Test Adı</label>
                 <input
-                  type="text"
+                  type='text'
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Test Kodu</label>
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                <label className='block text-sm font-medium text-gray-700'>Grup</label>
+                <select
+                  value={formData.groupId}
+                  onChange={(e) => {
+                    const selectedGroup = testGroups.find((group) => group.id === e.target.value);
+                    setFormData({
+                      ...formData,
+                      groupId: e.target.value,
+                      category: selectedGroup ? selectedGroup.title : '',
+                    });
+                  }}
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   required
-                />
+                >
+                  <option value=''>Grup Seçin</option>
+                  {testGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.title}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Açıklama</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  rows="3"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Kategori</label>
+                <label className='block text-sm font-medium text-gray-700'>Temel Fiyat (TL)</label>
                 <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Temel Fiyat (TL)</label>
-                <input
-                  type="number"
+                  type='number'
                   value={formData.basePrice}
                   onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   required
                 />
               </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="ml-2 block text-sm text-gray-900">Aktif</label>
-              </div>
-              <div className="flex justify-end space-x-3">
+              <div className='flex justify-end space-x-3'>
                 <button
-                  type="button"
+                  type='button'
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className='rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
                 >
                   İptal
                 </button>
                 <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  type='submit'
+                  className='rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
                 >
                   {selectedTest ? 'Güncelle' : 'Ekle'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Group Modal */}
+      {isGroupModalOpen && (
+        <div className='fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm'>
+          <div className='w-full max-w-md rounded-lg bg-white p-6'>
+            <h2 className='mb-4 text-lg font-medium'>Yeni Grup Ekle</h2>
+            <form onSubmit={handleAddGroup} className='space-y-4'>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Grup Adı</label>
+                <input
+                  type='text'
+                  value={newGroupTitle}
+                  onChange={(e) => setNewGroupTitle(e.target.value)}
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  required
+                />
+              </div>
+              <div className='flex justify-end space-x-3'>
+                <button
+                  type='button'
+                  onClick={() => setIsGroupModalOpen(false)}
+                  className='rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
+                >
+                  İptal
+                </button>
+                <button
+                  type='submit'
+                  className='rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700'
+                >
+                  Ekle
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Package Modal */}
+      {isPackageModalOpen && (
+        <div className='fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50'>
+          <div className='w-full max-w-md rounded-lg bg-white p-6'>
+            <h2 className='mb-4 text-lg font-medium'>Yeni Paket Ekle</h2>
+            <form onSubmit={handleAddPackage} className='space-y-4'>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Paket Adı</label>
+                <input
+                  type='text'
+                  value={newPackageName}
+                  onChange={(e) => setNewPackageName(e.target.value)}
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  required
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Testler</label>
+                <select
+                  multiple
+                  value={newPackageTests}
+                  onChange={(e) => setNewPackageTests(Array.from(e.target.selectedOptions, option => option.value))}
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 h-32'
+                  required
+                >
+                  {tests.map((test) => (
+                    <option key={test.id} value={test.name}>
+                      {test.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className='flex justify-end space-x-3'>
+                <button
+                  type='button'
+                  onClick={() => setIsPackageModalOpen(false)}
+                  className='rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
+                >
+                  İptal
+                </button>
+                <button
+                  type='submit'
+                  className='rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
+                >
+                  Ekle
                 </button>
               </div>
             </form>

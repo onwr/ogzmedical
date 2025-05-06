@@ -7,8 +7,11 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
     requestDate: initialValues.requestDate || '',
     tcNo: initialValues.tcNo || '',
     gender: initialValues.gender || '',
-
+    photo: initialValues.photo || '',
+    extraPhoto: initialValues.extraPhoto || ''
   })
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadingType, setUploadingType] = useState(null)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -17,14 +20,48 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
     onPatientInfoChange(newPatientInfo)
   }
 
+  const handlePhotoUpload = async (e, type) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      setIsUploading(true)
+      setUploadingType(type)
+      const formData = new FormData()
+      formData.append('image', file)
+
+      const response = await fetch('https://api.imgbb.com/1/upload?key=48e17415bdf865ecc15389b796c9ec79', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        const newPatientInfo = { ...patientInfo, [type]: data.data.url }
+        setPatientInfo(newPatientInfo)
+        onPatientInfoChange(newPatientInfo)
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      alert('Fotoğraf yüklenirken bir hata oluştu')
+    } finally {
+      setIsUploading(false)
+      setUploadingType(null)
+    }
+  }
+
+  const removePhoto = (type) => {
+    const newPatientInfo = { ...patientInfo, [type]: '' }
+    setPatientInfo(newPatientInfo)
+    onPatientInfoChange(newPatientInfo)
+  }
+
   return (
     <div className='space-y-2'>
+      <p className='ml-2 text-xl mt-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
       <div className='rounded-lg bg-white p-2 shadow'>
-        <div className='gap-2 flex items-center justify-between'>
+        <div className='flex items-center justify-between gap-2'>
           <div className='w-full'>
-            <label className='mb-1 block text-[7px] font-medium text-gray-700 md:text-xs'>
-              Ad Soyad
-            </label>
             <input
               type='text'
               name='name'
@@ -35,9 +72,6 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
             />
           </div>
           <div className='w-full'>
-            <label className='mb-1 block text-[7px] font-medium text-gray-700 md:text-xs'>
-              Doğum Tarihi
-            </label>
             <input
               type='date'
               name='birthDate'
@@ -47,9 +81,6 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
             />
           </div>
           <div className='w-full'>
-            <label className='mb-1 block text-[7px] font-medium text-gray-700 md:text-xs'>
-              İstek Tarihi
-            </label>
             <input
               type='date'
               name='requestDate'
@@ -59,9 +90,6 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
             />
           </div>
           <div className='w-full'>
-            <label className='mb-1 block text-[7px] font-medium text-gray-700 md:text-xs'>
-              T.C. Kimlik No
-            </label>
             <input
               type='text'
               name='tcNo'
@@ -72,9 +100,6 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
             />
           </div>
           <div className='w-full'>
-            <label className='mb-1 block text-[7px] font-medium text-gray-700 md:text-xs'>
-              Cinsiyet
-            </label>
             <select
               name='gender'
               value={patientInfo.gender}
@@ -82,14 +107,90 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
             >
               <option value=''>Seçiniz</option>
-              <option value='Erkek'>Erkek</option>
-              <option value='Kadın'>Kadın</option>
+              <option value='erkek'>Erkek</option>
+              <option value='kadın'>Kadın</option>
             </select>
+          </div>
+        </div>
+
+        <div className='flex items-center gap-4 mt-2'>
+          {/* Kimlik Fotoğrafı */}
+          <div className='relative'>
+            <input
+              type='file'
+              accept='image/*'
+              onChange={(e) => handlePhotoUpload(e, 'photo')}
+              className='hidden'
+              id='photo-upload'
+              disabled={isUploading}
+            />
+            <label
+              htmlFor='photo-upload'
+              className={`inline-flex p-1 items-center border border-gray-300 rounded-md shadow-sm text-[7px] md:text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
+                isUploading && uploadingType === 'photo' ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isUploading && uploadingType === 'photo' ? 'Yükleniyor...' : 'Kimlik Fotoğrafı'}
+            </label>
+            {patientInfo.photo && (
+              <div className='relative w-10 h-8'>
+                <img
+                  src={patientInfo.photo}
+                  alt='Kimlik fotoğrafı'
+                  className='w-10 h-8 object-contain rounded-lg'
+                />
+                <button
+                  onClick={() => removePhoto('photo')}
+                  className='absolute top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
+                >
+                  <svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Ek Fotoğraf */}
+          <div className='relative'>
+            <input
+              type='file'
+              accept='image/*'
+              onChange={(e) => handlePhotoUpload(e, 'extraPhoto')}
+              className='hidden'
+              id='extra-photo-upload'
+              disabled={isUploading}
+            />
+            <label
+              htmlFor='extra-photo-upload'
+              className={`inline-flex p-1 items-center border border-gray-300 rounded-md shadow-sm text-[7px] md:text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
+                isUploading && uploadingType === 'extraPhoto' ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isUploading && uploadingType === 'extraPhoto' ? 'Yükleniyor...' : 'Ek Fotoğraf'}
+            </label>
+            {patientInfo.extraPhoto && (
+              <div className='relative w-10 h-8'>
+                <img
+                  src={patientInfo.extraPhoto}
+                  alt='Ek fotoğraf'
+                  className='w-10 h-8 object-contain rounded-lg'
+                />
+                <button
+                  onClick={() => removePhoto('extraPhoto')}
+                  className='absolute top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
+                >
+                  <svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default Header

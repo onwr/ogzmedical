@@ -16,7 +16,6 @@ const navigation = [
   { name: 'Bayiler', href: '/admin/dealers', icon: UserGroupIcon },
   { name: 'Testler', href: '/admin/tests', icon: BeakerIcon },
   { name: 'Finans', href: '/admin/finance', icon: BanknotesIcon },
-  { name: 'PDF Yönetimi', href: '/admin/pdfs', icon: DocumentTextIcon },
 ];
 
 const AdminLayout = ({ children }) => {

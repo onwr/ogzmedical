@@ -7,7 +7,6 @@ import Applications from './pages/admin/Applications';
 import Dealers from './pages/admin/Dealers';
 import Tests from './pages/admin/Tests';
 import Finance from './pages/admin/Finance';
-import PDFs from './pages/admin/PDFs';
 import Login from './pages/admin/Login';
 import Home from './pages/Form';
 
@@ -67,15 +66,11 @@ const App = () => {
           path='/admin/finance'
           element={isAuthenticated ? <Finance /> : <Navigate to='/admin/login' replace />}
         />
-        <Route
-          path='/admin/pdfs'
-          element={isAuthenticated ? <PDFs /> : <Navigate to='/admin/login' replace />}
-        />
 
         {/* Public Routes */}
         <Route path='/' element={<Navigate to='/admin' replace />} />
 
-        <Route path='/:dealerId' element={<Home />} />
+        <Route path='/:dealerName' element={<Home />} />
 
         <Route path='/form/:applicationId' element={<Home />} />
       </Routes>

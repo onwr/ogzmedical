@@ -20,7 +20,7 @@ const setCookie = (name, value, days = 30) => {
 }
 
 const Table = ({ application }) => {
-  const { dealerId } = useParams()
+  const { dealerName } = useParams()
   const navigate = useNavigate()
   const [testGroups, setTestGroups] = useState([])
   const [packages, setPackages] = useState([])
@@ -37,6 +37,8 @@ const Table = ({ application }) => {
     phone: '',
     email: ''
   })
+  const [dealerPrices, setDealerPrices] = useState({})
+
 
   useEffect(() => {
     if (application) {
@@ -55,18 +57,41 @@ const Table = ({ application }) => {
   }, [application, testGroups])
 
   useEffect(() => {
-    if (dealerId) {
+    if (dealerName) {
       fetchDealer()
     }
     fetchTestGroups()
     fetchPackages()
-  }, [dealerId])
+  }, [dealerName])
+
+  useEffect(() => {
+    if (dealer?.id) {
+      fetchDealerPrices()
+    }
+  }, [dealer?.id])
 
   const fetchDealer = async () => {
     try {
-      const dealerDoc = await getDoc(doc(db, 'dealers', dealerId))
-      if (dealerDoc.exists()) {
-        setDealer({ id: dealerDoc.id, ...dealerDoc.data() })
+      const dealersQuery = query(
+        collection(db, 'dealers'),
+        where('isActive', '==', true)
+      )
+      const dealersSnapshot = await getDocs(dealersQuery)
+      
+      // Bayi adını küçük harfe çevir
+      const searchName = dealerName.toLowerCase()
+      
+      // Tüm aktif bayileri filtrele
+      const foundDealer = dealersSnapshot.docs.find(doc => {
+        const dealerData = doc.data()
+        return dealerData.name.toLowerCase() === searchName
+      })
+      
+      if (foundDealer) {
+        setDealer({
+          id: foundDealer.id,
+          ...foundDealer.data()
+        })
       } else {
         console.error('Dealer not found')
         alert('Bayi bilgisi bulunamadı')
@@ -123,6 +148,26 @@ const Table = ({ application }) => {
     }
   }
 
+  const fetchDealerPrices = async () => {
+    try {
+      const dealerPricesQuery = query(
+        collection(db, 'dealerPrices'),
+        where('dealerId', '==', dealer.id)
+      )
+      const dealerPricesSnapshot = await getDocs(dealerPricesQuery)
+      
+      const prices = {}
+      dealerPricesSnapshot.forEach(doc => {
+        const data = doc.data()
+        prices[data.testId] = data.price
+      })
+      
+      setDealerPrices(prices)
+    } catch (error) {
+      console.error('Error fetching dealer prices:', error)
+    }
+  }
+
   const handleCheckboxChange = (groupIndex, testIndex) => {
     const key = `${groupIndex}-${testIndex}`
     setSelectedTests(prev => {
@@ -154,7 +199,8 @@ const Table = ({ application }) => {
     Object.keys(selectedTests).forEach(key => {
       const [groupIndex, testIndex] = key.split('-').map(Number)
       const test = testGroups[groupIndex].tests[testIndex]
-      total += test.price
+      const price = dealerPrices[test.id] || test.basePrice
+      total += price
     })
     return total
   }
@@ -182,7 +228,7 @@ const Table = ({ application }) => {
         return {
           testId: test.id,
           name: test.name,
-          price: test.price
+          price: test.basePrice
         }
       })
 
