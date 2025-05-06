@@ -362,7 +362,7 @@ const Table = ({ application, dealerName, showPrices }) => {
             </div>
           )}
 
-          <div className='w-full columns-5 gap-1'>
+          <div className='w-full columns-4 gap-1'>
             {testGroups.map((group, groupIndex) => (
               <div
                 key={group.id}

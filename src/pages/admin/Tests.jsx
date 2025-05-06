@@ -74,13 +74,17 @@ const Tests = () => {
 
   const fetchTestGroups = async () => {
     try {
-      const q = query(collection(db, 'testGroups'), orderBy('order'));
+      const q = query(collection(db, 'testGroups'));
       const querySnapshot = await getDocs(q);
       const groupsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        order: doc.data().order ?? Number.MAX_SAFE_INTEGER // Order değeri olmayanları en sona koy
       }));
-      setTestGroups(groupsList);
+      
+      // Order değerine göre sırala
+      const sortedGroups = groupsList.sort((a, b) => a.order - b.order);
+      setTestGroups(sortedGroups);
     } catch (error) {
       console.error('Error fetching test groups:', error);
     }
@@ -147,49 +151,49 @@ const Tests = () => {
   };
 
   const handleMoveGroup = async (groupId, direction) => {
-    const currentIndex = testGroups.findIndex(g => g.id === groupId)
+    const currentIndex = testGroups.findIndex(g => g.id === groupId);
     if (
       (direction === 'up' && currentIndex === 0) || 
       (direction === 'down' && currentIndex === testGroups.length - 1)
     ) {
-      return
+      return;
     }
 
-    const newGroups = [...testGroups]
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    const [movedGroup] = newGroups.splice(currentIndex, 1)
-    newGroups.splice(newIndex, 0, movedGroup)
+    const newGroups = [...testGroups];
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const [movedGroup] = newGroups.splice(currentIndex, 1);
+    newGroups.splice(newIndex, 0, movedGroup);
 
     try {
-      const batch = writeBatch(db)
+      const batch = writeBatch(db);
       newGroups.forEach((group, index) => {
-        const groupRef = doc(db, 'testGroups', group.id)
-        batch.update(groupRef, { order: index })
-      })
-      await batch.commit()
-      setTestGroups(newGroups)
+        const groupRef = doc(db, 'testGroups', group.id);
+        batch.update(groupRef, { order: index });
+      });
+      await batch.commit();
+      setTestGroups(newGroups);
     } catch (error) {
-      console.error('Error updating group order:', error)
-      alert('Grup sıralaması güncellenirken bir hata oluştu')
+      console.error('Error updating group order:', error);
+      alert('Grup sıralaması güncellenirken bir hata oluştu');
     }
-  }
+  };
 
   const handleAddGroup = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      const newGroupRef = doc(collection(db, 'testGroups'))
+      const newGroupRef = doc(collection(db, 'testGroups'));
       await setDoc(newGroupRef, {
         title: newGroupTitle,
         createdAt: new Date(),
-        order: testGroups.length
-      })
-      setNewGroupTitle('')
-      setIsGroupModalOpen(false)
-      fetchTestGroups()
+        order: testGroups.length // Yeni grubu en sona ekle
+      });
+      setNewGroupTitle('');
+      setIsGroupModalOpen(false);
+      fetchTestGroups();
     } catch (error) {
-      console.error('Error adding test group:', error)
+      console.error('Error adding test group:', error);
     }
-  }
+  };
 
   const handleEdit = (test) => {
     setSelectedTest(test);
