@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const Header = ({ onPatientInfoChange, initialValues = {} }) => {
+const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => {
   const [patientInfo, setPatientInfo] = useState({
     name: initialValues.name || '',
     birthDate: initialValues.birthDate || '',
@@ -58,10 +58,10 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
 
   return (
     <div>
-      <p className='ml-2 text-md mt-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
+      <p className='text-md mt-2 ml-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
       <div className='rounded-lg bg-white px-2 pb-1'>
         <div className='flex items-center justify-between gap-1'>
-          <div className='w-[25%]'>
+          <div className={`transition-all duration-300 ${patientInfo.name ? 'w-[35%]' : 'w-[25%]'}`}>
             <input
               type='text'
               name='name'
@@ -72,7 +72,7 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               required
             />
           </div>
-          <div className='w-[20%]'>
+          <div className={`transition-all duration-300 ${patientInfo.birthDate ? 'w-[15%]' : 'w-[20%]'}`}>
             <input
               type='text'
               name='birthDate'
@@ -82,7 +82,7 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               placeholder='Doğum Tarihi'
             />
           </div>
-          <div className='w-[20%]'>
+          <div className={`transition-all duration-300 ${patientInfo.requestDate ? 'w-[15%]' : 'w-[20%]'}`}>
             <input
               type='date'
               name='requestDate'
@@ -91,7 +91,7 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
             />
           </div>
-          <div className='w-[10%]'>
+          <div className={`transition-all duration-300 ${patientInfo.tcNo ? 'w-[8%]' : 'w-[10%]'}`}>
             <input
               type='text'
               name='tcNo'
@@ -101,19 +101,19 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               placeholder='T.C. Kimlik No'
             />
           </div>
-          <div className='w-[10%]'>
+          <div className={`transition-all duration-300 ${patientInfo.gender ? 'w-[5%]' : 'w-[10%]'}`}>
             <select
               name='gender'
               value={patientInfo.gender}
               onChange={handleChange}
-              className='w-full rounded text-center border appearance-none border-gray-300 px-0.5 py-1 text-[8px] md:text-xs'
+              className='w-full appearance-none rounded border border-gray-300 px-0.5 py-1 text-center text-[8px] md:text-xs'
             >
               <option value=''>Seç</option>
               <option value='erkek'>E</option>
               <option value='kadın'>K</option>
             </select>
           </div>
-          <div className='w-[10%] flex justify-center items-center gap-1'>
+          <div className='flex w-[10%] items-center justify-center gap-1'>
             {/* Evrak Yükle */}
             <div className='relative'>
               <input
@@ -126,31 +126,41 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               />
               <label
                 htmlFor='photo-upload'
-                className={`inline-flex text-center px-0.5 py-1 items-center border border-gray-300 rounded-md shadow-sm text-[7px] md:text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
-                  isUploading && uploadingType === 'photo' ? 'opacity-50 cursor-not-allowed' : ''
+                className={`inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-0.5 py-1 text-center text-[7px] font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none md:text-xs ${
+                  isUploading && uploadingType === 'photo' ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
                 {isUploading && uploadingType === 'photo' ? 'Yükleniyor...' : 'Evrak Yükle'}
               </label>
               {patientInfo.photo && (
-                <div className='relative w-8 h-6'>
+                <div className='relative h-6 w-8'>
                   <img
                     src={patientInfo.photo}
                     alt='Kimlik fotoğrafı'
-                    className='w-8 h-6 object-contain rounded-lg'
+                    className='h-6 w-8 rounded-lg object-contain'
                   />
                   <button
                     onClick={() => removePhoto('photo')}
-                    className='absolute top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600'
+                    className='absolute top-1 -right-1 rounded-full bg-red-500 p-0.5 text-white hover:bg-red-600'
                   >
-                    <svg className='w-2 h-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12' />
+                    <svg className='h-2 w-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth='2'
+                        d='M6 18L18 6M6 6l12 12'
+                      />
                     </svg>
                   </button>
                 </div>
               )}
             </div>
-
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className='absolute top-2 right-2 rounded-sm bg-blue-600 p-1 text-[7px] font-medium text-white hover:bg-blue-700 md:rounded-lg md:py-2 md:text-sm'
+            >
+              Paket Seç
+            </button>
           </div>
         </div>
       </div>

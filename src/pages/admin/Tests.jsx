@@ -73,7 +73,7 @@ const Tests = () => {
 
   const fetchTestGroups = async () => {
     try {
-      const q = query(collection(db, 'testGroups'), orderBy('title'));
+      const q = query(collection(db, 'testGroups'), orderBy('order'));
       const querySnapshot = await getDocs(q);
       const groupsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -142,20 +142,50 @@ const Tests = () => {
     }
   };
 
-  const handleAddGroup = async (e) => {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, 'testGroups'), {
-        title: newGroupTitle,
-        createdAt: new Date()
-      });
-      setNewGroupTitle('');
-      setIsGroupModalOpen(false);
-      fetchTestGroups();
-    } catch (error) {
-      console.error('Error adding test group:', error);
+  const handleMoveGroup = async (groupId, direction) => {
+    const currentIndex = testGroups.findIndex(g => g.id === groupId)
+    if (
+      (direction === 'up' && currentIndex === 0) || 
+      (direction === 'down' && currentIndex === testGroups.length - 1)
+    ) {
+      return
     }
-  };
+
+    const newGroups = [...testGroups]
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    const [movedGroup] = newGroups.splice(currentIndex, 1)
+    newGroups.splice(newIndex, 0, movedGroup)
+
+    try {
+      const batch = writeBatch(db)
+      newGroups.forEach((group, index) => {
+        const groupRef = doc(db, 'testGroups', group.id)
+        batch.update(groupRef, { order: index })
+      })
+      await batch.commit()
+      setTestGroups(newGroups)
+    } catch (error) {
+      console.error('Error updating group order:', error)
+      alert('Grup sıralaması güncellenirken bir hata oluştu')
+    }
+  }
+
+  const handleAddGroup = async (e) => {
+    e.preventDefault()
+    try {
+      const newGroupRef = doc(collection(db, 'testGroups'))
+      await setDoc(newGroupRef, {
+        title: newGroupTitle,
+        createdAt: new Date(),
+        order: testGroups.length
+      })
+      setNewGroupTitle('')
+      setIsGroupModalOpen(false)
+      fetchTestGroups()
+    } catch (error) {
+      console.error('Error adding test group:', error)
+    }
+  }
 
   const handleEdit = (test) => {
     setSelectedTest(test);
@@ -365,11 +395,35 @@ const Tests = () => {
         <div className='rounded-lg bg-white p-4 shadow'>
           <h2 className='mb-4 text-lg font-medium text-gray-900'>Test Grupları</h2>
           <div className='flex flex-wrap gap-2'>
-            {testGroups.map((group) => (
+            {testGroups.map((group, index) => (
               <div
                 key={group.id}
                 className='flex items-center space-x-2 rounded-lg bg-gray-100 px-3 py-2'
               >
+                <div className='flex items-center space-x-1'>
+                  <button
+                    onClick={() => handleMoveGroup(group.id, 'up')}
+                    disabled={index === 0}
+                    className={`p-1 rounded hover:bg-gray-200 ${
+                      index === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleMoveGroup(group.id, 'down')}
+                    disabled={index === testGroups.length - 1}
+                    className={`p-1 rounded hover:bg-gray-200 ${
+                      index === testGroups.length - 1 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
                 <span className='text-sm font-medium text-gray-700'>{group.title}</span>
                 <button
                   onClick={() => handleDeleteGroup(group.id)}

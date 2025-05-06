@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Table from '@components/form/Table';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const Form = () => {
@@ -11,10 +11,6 @@ const Form = () => {
   const [application, setApplication] = useState(null);
   const [dealer, setDealer] = useState(null);
   const [showError, setShowError] = useState(false);
-  const [doctorNotes, setDoctorNotes] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  
-  
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,7 +49,6 @@ const Form = () => {
               id: docSnap.id,
               ...docSnap.data()
             });
-            setDoctorNotes(docSnap.data().doctorNotes ?? '');
           }
         }
       } catch (error) {
@@ -66,23 +61,6 @@ const Form = () => {
 
     fetchData();
   }, [applicationId, dealerName]);
-
-  const handleNotesChange = (e) => {
-    setDoctorNotes(e.target.value);
-  };
-
-  const handleSaveNotes = async () => {
-    if (!applicationId) return;
-    setIsSaving(true);
-    try {
-      await updateDoc(doc(db, 'applications', applicationId), { doctorNotes });
-      setApplication((prev) => ({ ...prev, doctorNotes }));
-    } catch (error) {
-      alert('Notlar kaydedilemedi');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -121,24 +99,6 @@ const Form = () => {
   return (
     <div>
       <Table application={application} dealerName={dealer?.name} />
-      <div className="mx-auto  rounded-lg p-2">
-        <label className="block text-[8px] font-medium text-gray-700 mb-0.5">Notlar ve Açıklamalar</label>
-        <textarea
-          className="w-full max-h-[40px] rounded-lg border border-gray-300 p-2 text-[10px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
-          value={doctorNotes}
-          onChange={handleNotesChange}
-          placeholder="Notlarınızı buraya yazabilirsiniz..."
-        />
-        <div className="flex justify-end">
-          <button
-            onClick={handleSaveNotes}
-            disabled={isSaving}
-            className="bg-blue-600 text-white p-1 text-[7px] rounded-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isSaving ? 'Kaydediliyor...' : 'Notları Kaydet'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { collection, query, where, getDocs, addDoc, getDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, getDoc, doc, updateDoc, orderBy } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import Header from '@components/Header'
 
@@ -28,6 +28,7 @@ const Table = ({ application }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [dealer, setDealer] = useState(null)
+  const [doctorNotes, setDoctorNotes] = useState(application?.doctorNotes || '')
   const [patientInfo, setPatientInfo] = useState({
     name: '',
     birthDate: '',
@@ -104,11 +105,11 @@ const Table = ({ application }) => {
 
   const fetchTestGroups = async () => {
     try {
-      const groupsQuery = query(collection(db, 'testGroups'))
-      const groupsSnapshot = await getDocs(groupsQuery)
+      const q = query(collection(db, 'testGroups'), orderBy('order'))
+      const querySnapshot = await getDocs(q)
       const groups = []
 
-      for (const groupDoc of groupsSnapshot.docs) {
+      for (const groupDoc of querySnapshot.docs) {
         const testsQuery = query(
           collection(db, 'tests'),
           where('groupId', '==', groupDoc.id)
@@ -126,39 +127,7 @@ const Table = ({ application }) => {
         })
       }
 
-      // Define the order of groups
-      const groupOrder = [
-        'BİYOKİMYA',
-        'HEMATOLOJİ',
-        'HEPATİT MARKERLERİ',
-        'MİKROBİYOLOJİ',
-        'HORMONLAR',
-        'SEROLOJİ',
-        'GAİTA',
-        'İDRAR',
-        'TÜMÖR MARKERLERİ',
-        'ANTENATAL TESTLER',
-        'ALLERJİ',
-        'MULTİPLEX PCR TESTLERİ'
-      ]
-
-      // Sort groups according to the specified order
-      const sortedGroups = groups.sort((a, b) => {
-        const indexA = groupOrder.indexOf(a.title)
-        const indexB = groupOrder.indexOf(b.title)
-        
-        // If both groups are in the order list, sort by their position
-        if (indexA !== -1 && indexB !== -1) {
-          return indexA - indexB
-        }
-        // If only one group is in the order list, prioritize it
-        if (indexA !== -1) return -1
-        if (indexB !== -1) return 1
-        // If neither group is in the order list, maintain original order
-        return 0
-      })
-
-      setTestGroups(sortedGroups)
+      setTestGroups(groups)
     } catch (error) {
       console.error('Error fetching test groups:', error)
     } finally {
@@ -269,7 +238,8 @@ const Table = ({ application }) => {
         selectedTests: selectedTestsList,
         totalPrice: calculateTotalPrice(),
         status: 'pending',
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        doctorNotes
       }
 
       if (application) {
@@ -299,6 +269,7 @@ const Table = ({ application }) => {
         phone: '',
         email: ''
       })
+      setDoctorNotes('')
     } catch (error) {
       console.error('Error creating/updating application:', error)
       alert('Başvuru oluşturulurken bir hata oluştu')
@@ -319,19 +290,12 @@ const Table = ({ application }) => {
 
   return (
     <>
-      <Header onPatientInfoChange={handlePatientInfoChange} initialValues={patientInfo} />
+      <Header onPatientInfoChange={handlePatientInfoChange} initialValues={patientInfo} setIsModalOpen={setIsModalOpen} />
 
-      <div>
+      <div className='relative'>
+
+
         <div className='rounded-lg bg-white py-0 px-2 shadow'>
-          <div className='mb-1 flex items-center justify-between'>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className='rounded-sm md:rounded-lg bg-blue-600 p-1 md:py-2 text-[7px] md:text-sm font-medium text-white hover:bg-blue-700'
-            >
-              Paket Seç
-            </button>
-          </div>
-
           {isModalOpen && (
             <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm'>
               <div className='w-full max-w-2xl rounded-lg bg-white p-4 shadow-lg'>
@@ -431,12 +395,23 @@ const Table = ({ application }) => {
           </div>
         </div>
 
-        {/* Total and Submit */}
-        <div className='rounded-lg bg-white p-1'>
-          <div className='flex items-center justify-between'>
+        {/* Total, Notes and Submit */}
+        <div className='rounded-lg bg-white p-1 mt-2'>
+          <div className='flex items-center justify-between mb-2'>
             <div className='text-xs font-medium'>
               Toplam Tutar: <span className='text-blue-600'>{calculateTotalPrice()} TL</span>
             </div>
+            <div className='flex-1 mx-4'>
+              <textarea
+                className='w-full rounded border border-gray-300 px-2 py-1 text-[8px] md:text-xs resize-none'
+                value={doctorNotes}
+                onChange={(e) => setDoctorNotes(e.target.value)}
+                placeholder='Notlar ve Açıklamalar...'
+                rows={1}
+              />
+            </div>
+          </div>
+          <div className='flex justify-end'>
             <button
               onClick={handleCreateApplication}
               className='rounded-sm md:rounded-lg bg-blue-600 px-6 py-1 md:py-2 text-xs md:text-sm font-medium text-white hover:bg-blue-700'
