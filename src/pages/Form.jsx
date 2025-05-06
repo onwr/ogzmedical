@@ -122,11 +122,9 @@ const Form = () => {
     <div>
       <Table application={application} dealerName={dealer?.name} />
       <div className="mx-auto  rounded-lg p-2">
-        <h2 className="text-[10px] font-bold text-blue-600 mb-1">Doktor Notları</h2>
-        <hr className="mb-1" />
-        <label className="block text-[10px] font-medium text-gray-700 mb-2">Notlar ve Açıklamalar</label>
+        <label className="block text-[8px] font-medium text-gray-700 mb-0.5">Notlar ve Açıklamalar</label>
         <textarea
-          className="w-full min-h-[20px] rounded-lg border border-gray-300 p-3 text-[10px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
+          className="w-full max-h-[40px] rounded-lg border border-gray-300 p-2 text-[10px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
           value={doctorNotes}
           onChange={handleNotesChange}
           placeholder="Notlarınızı buraya yazabilirsiniz..."
@@ -135,7 +133,7 @@ const Form = () => {
           <button
             onClick={handleSaveNotes}
             disabled={isSaving}
-            className="bg-blue-600 text-white p-1 text-xs rounded-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 text-white p-1 text-[7px] rounded-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
             {isSaving ? 'Kaydediliyor...' : 'Notları Kaydet'}
           </button>

@@ -58,136 +58,99 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
 
   return (
     <div>
-      <p className='ml-2 text-lg mt-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
+      <p className='ml-2 text-md mt-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
       <div className='rounded-lg bg-white px-2 pb-1'>
-        <div className='flex items-center justify-between gap-0.5'>
-          <div className='w-full'>
+        <div className='flex items-center justify-between gap-1'>
+          <div className='w-[25%]'>
             <input
               type='text'
               name='name'
               value={patientInfo.name}
               onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
+              className='w-full rounded border border-gray-300 px-2 py-1 text-[8px] md:text-sm'
               placeholder='Ad Soyad'
               required
             />
           </div>
-          <div className='w-full'>
+          <div className='w-[20%]'>
             <input
               type='text'
               name='birthDate'
               value={patientInfo.birthDate}
               onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
+              className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
               placeholder='Doğum Tarihi'
             />
           </div>
-          <div className='w-full'>
+          <div className='w-[20%]'>
             <input
               type='date'
               name='requestDate'
               value={patientInfo.requestDate}
               onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
+              className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
             />
           </div>
-          <div className='w-full'>
+          <div className='w-[10%]'>
             <input
               type='text'
               name='tcNo'
               value={patientInfo.tcNo}
               onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
+              className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
               placeholder='T.C. Kimlik No'
             />
           </div>
-          <div className='w-full'>
+          <div className='w-[10%]'>
             <select
               name='gender'
               value={patientInfo.gender}
               onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-1 py-1 text-[7px] md:text-xs'
+              className='w-full rounded text-center border appearance-none border-gray-300 px-0.5 py-1 text-[8px] md:text-xs'
             >
               <option value=''>Seç</option>
               <option value='erkek'>E</option>
               <option value='kadın'>K</option>
             </select>
           </div>
-        </div>
+          <div className='w-[10%] flex justify-center items-center gap-1'>
+            {/* Evrak Yükle */}
+            <div className='relative'>
+              <input
+                type='file'
+                accept='image/*'
+                onChange={(e) => handlePhotoUpload(e, 'photo')}
+                className='hidden'
+                id='photo-upload'
+                disabled={isUploading}
+              />
+              <label
+                htmlFor='photo-upload'
+                className={`inline-flex text-center px-0.5 py-1 items-center border border-gray-300 rounded-md shadow-sm text-[7px] md:text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
+                  isUploading && uploadingType === 'photo' ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isUploading && uploadingType === 'photo' ? 'Yükleniyor...' : 'Evrak Yükle'}
+              </label>
+              {patientInfo.photo && (
+                <div className='relative w-8 h-6'>
+                  <img
+                    src={patientInfo.photo}
+                    alt='Kimlik fotoğrafı'
+                    className='w-8 h-6 object-contain rounded-lg'
+                  />
+                  <button
+                    onClick={() => removePhoto('photo')}
+                    className='absolute top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600'
+                  >
+                    <svg className='w-2 h-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12' />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
 
-        <div className='flex items-center gap-4 mt-2'>
-          {/* Evrak Yükle */}
-          <div className='relative'>
-            <input
-              type='file'
-              accept='image/*'
-              onChange={(e) => handlePhotoUpload(e, 'photo')}
-              className='hidden'
-              id='photo-upload'
-              disabled={isUploading}
-            />
-            <label
-              htmlFor='photo-upload'
-              className={`inline-flex p-1 items-center border border-gray-300 rounded-md shadow-sm text-[7px] md:text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
-                isUploading && uploadingType === 'photo' ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isUploading && uploadingType === 'photo' ? 'Yükleniyor...' : 'Evrak Yükle'}
-            </label>
-            {patientInfo.photo && (
-              <div className='relative w-10 h-8'>
-                <img
-                  src={patientInfo.photo}
-                  alt='Kimlik fotoğrafı'
-                  className='w-10 h-8 object-contain rounded-lg'
-                />
-                <button
-                  onClick={() => removePhoto('photo')}
-                  className='absolute top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
-                >
-                  <svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12' />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Ek Fotoğraf */}
-          <div className='relative'>
-            <input
-              type='file'
-              accept='image/*'
-              onChange={(e) => handlePhotoUpload(e, 'extraPhoto')}
-              className='hidden'
-              id='extra-photo-upload'
-              disabled={isUploading}
-            />
-            <label
-              htmlFor='extra-photo-upload'
-              className={`inline-flex p-1 items-center border border-gray-300 rounded-md shadow-sm text-[7px] md:text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
-                isUploading && uploadingType === 'extraPhoto' ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isUploading && uploadingType === 'extraPhoto' ? 'Yükleniyor...' : 'Ek Fotoğraf'}
-            </label>
-            {patientInfo.extraPhoto && (
-              <div className='relative w-10 h-8'>
-                <img
-                  src={patientInfo.extraPhoto}
-                  alt='Ek fotoğraf'
-                  className='w-10 h-8 object-contain rounded-lg'
-                />
-                <button
-                  onClick={() => removePhoto('extraPhoto')}
-                  className='absolute top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
-                >
-                  <svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12' />
-                  </svg>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
