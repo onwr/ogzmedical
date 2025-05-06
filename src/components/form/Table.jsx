@@ -244,14 +244,20 @@ const Table = ({ application }) => {
         return {
           testId: test.id,
           name: test.name,
-          price: test.basePrice
+          price: test.basePrice,
+          costPrice: test.costPrice || 0
         }
       })
+
+      const totalCost = selectedTestsList.reduce((sum, test) => sum + (test.costPrice || 0), 0)
+      const totalPrice = calculateTotalPrice()
 
       const applicationData = {
         patientInfo,
         selectedTests: selectedTestsList,
-        totalPrice: calculateTotalPrice(),
+        totalPrice,
+        totalCost,
+        profit: totalPrice - totalCost,
         status: 'pending',
         updatedAt: new Date(),
         doctorNotes

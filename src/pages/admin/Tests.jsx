@@ -18,7 +18,8 @@ const Tests = () => {
     name: '',
     category: '',
     groupId: '',
-    basePrice: ''
+    basePrice: '',
+    costPrice: ''
   });
   const [packages, setPackages] = useState([]);
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
@@ -119,12 +120,14 @@ const Tests = () => {
       if (selectedTest) {
         await updateDoc(doc(db, 'tests', selectedTest.id), {
           ...formData,
-          basePrice: Number(formData.basePrice)
+          basePrice: Number(formData.basePrice),
+          costPrice: Number(formData.costPrice)
         });
       } else {
         await addDoc(collection(db, 'tests'), {
           ...formData,
           basePrice: Number(formData.basePrice),
+          costPrice: Number(formData.costPrice),
           createdAt: new Date()
         });
       }
@@ -134,7 +137,8 @@ const Tests = () => {
         name: '',
         category: '',
         groupId: '',
-        basePrice: ''
+        basePrice: '',
+        costPrice: ''
       });
       fetchTests();
     } catch (error) {
@@ -193,7 +197,8 @@ const Tests = () => {
       name: test.name,
       category: test.category,
       groupId: test.groupId,
-      basePrice: test.basePrice.toString()
+      basePrice: test.basePrice.toString(),
+      costPrice: test.costPrice?.toString() || ''
     });
     setIsModalOpen(true);
   };
@@ -351,6 +356,7 @@ const Tests = () => {
                   category: '',
                   groupId: '',
                   basePrice: '',
+                  costPrice: ''
                 });
                 setIsModalOpen(true);
               }}
@@ -458,6 +464,9 @@ const Tests = () => {
                 <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
                   Grup
                 </th>
+                <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
+                  Geliş Fiyatı
+                </th>
                 {selectedDealer ? (
                   <th className='px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase'>
                     {dealers.find((d) => d.id === selectedDealer)?.name} Fiyatı
@@ -485,6 +494,9 @@ const Tests = () => {
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap'>
                     <div className='text-sm text-gray-900'>{test.category}</div>
+                  </td>
+                  <td className='px-6 py-4 whitespace-nowrap'>
+                    <div className='text-sm text-gray-900'>{test.costPrice || 0} TL</div>
                   </td>
                   {selectedDealer ? (
                     <td className='px-6 py-4 whitespace-nowrap'>
@@ -663,6 +675,16 @@ const Tests = () => {
                   type='number'
                   value={formData.basePrice}
                   onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                  required
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Geliş Fiyatı (TL)</label>
+                <input
+                  type='number'
+                  value={formData.costPrice}
+                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
                   className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   required
                 />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
@@ -7,8 +7,11 @@ import {
   BeakerIcon,
   BanknotesIcon,
   ArrowLeftOnRectangleIcon,
-  ArrowUpCircleIcon
+  ArrowUpCircleIcon,
+  BellIcon
 } from '@heroicons/react/24/outline';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -21,7 +24,61 @@ const navigation = [
 
 const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
+
+  useEffect(() => {
+    // Son 24 saatteki yeni başvuruları dinle
+    const last24Hours = new Date();
+    last24Hours.setHours(last24Hours.getHours() - 24);
+
+    const q = query(
+      collection(db, 'applications'),
+      where('createdAt', '>=', last24Hours),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newNotifications = snapshot.docChanges()
+        .filter(change => change.type === 'added')
+        .map(change => ({
+          id: change.doc.id,
+          ...change.doc.data(),
+          isRead: false
+        }));
+
+      if (newNotifications.length > 0) {
+        setNotifications(prev => [...newNotifications, ...prev]);
+        setUnreadCount(prev => prev + newNotifications.length);
+        
+        // Bildirim sesi çal
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(() => {}); // Ses çalma hatası olursa sessizce devam et
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const markAsRead = (notificationId) => {
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === notificationId
+          ? { ...notification, isRead: true }
+          : notification
+      )
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev =>
+      prev.map(notification => ({ ...notification, isRead: true }))
+    );
+    setUnreadCount(0);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -49,6 +106,11 @@ const AdminLayout = ({ children }) => {
                 >
                   <item.icon className="w-5 h-5 mr-3" />
                   {item.name}
+                  {item.name === 'Başvurular' && unreadCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -70,7 +132,7 @@ const AdminLayout = ({ children }) => {
       {/* Main Content */}
       <div className={`${isSidebarOpen ? 'ml-64' : 'ml-0'} transition-all duration-300 ease-in-out`}>
         {/* Top Bar */}
-        <div className="sticky top-0 z-40 flex items-center h-16 px-4 bg-white shadow-sm">
+        <div className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 bg-white shadow-sm">
           <button
             className="p-2 text-gray-500 rounded-lg hover:bg-gray-100"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -79,6 +141,74 @@ const AdminLayout = ({ children }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+
+          {/* Notifications */}
+          <div className="relative">
+            <button
+              className="p-2 text-gray-500 rounded-lg hover:bg-gray-100 relative"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <BellIcon className="w-6 h-6" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg overflow-hidden z-50">
+                <div className="p-4 border-b">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Bildirimler</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Tümünü Okundu İşaretle
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      Yeni bildirim yok
+                    </div>
+                  ) : (
+                    notifications.map(notification => (
+                      <div
+                        key={notification.id}
+                        className={`p-4 border-b hover:bg-gray-50 cursor-pointer ${
+                          !notification.isRead ? 'bg-blue-50' : ''
+                        }`}
+                        onClick={() => markAsRead(notification.id)}
+                      >
+                        <div className="flex items-start">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              Yeni Başvuru
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {notification.patientInfo.name}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(notification.createdAt.toDate()).toLocaleString('tr-TR')}
+                            </p>
+                          </div>
+                          {!notification.isRead && (
+                            <span className="ml-2 w-2 h-2 bg-blue-500 rounded-full"></span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Page Content */}

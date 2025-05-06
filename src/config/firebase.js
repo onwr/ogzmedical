@@ -3,12 +3,12 @@ import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyD_okhVPiXxG05L3pDYjp0Z9UDH8BtHOB4',
-  authDomain: 'ogzmed-74ed1.firebaseapp.com',
-  projectId: 'ogzmed-74ed1',
-  storageBucket: 'ogzmed-74ed1.firebasestorage.app',
-  messagingSenderId: '1048497019492',
-  appId: '1:1048497019492:web:144011fce4f74785ef9d71',
+  apiKey: 'AIzaSyAI8Ww110hBXNNb4vyNH1o6QBeDNYahqBk',
+  authDomain: 'ogzmed-e2405.firebaseapp.com',
+  projectId: 'ogzmed-e2405',
+  storageBucket: 'ogzmed-e2405.firebasestorage.app',
+  messagingSenderId: '1007886207305',
+  appId: '1:1007886207305:web:41e14d1d09c5ab8a4ff298',
 };
 
 const app = initializeApp(firebaseConfig);
@@ -323,9 +323,11 @@ Collections:
    - selectedTests: [{
        testId: string
        price: number
+       cost: number  // Added test cost
      }]
    - dealerId: string
    - totalPrice: number
+   - totalCost: number  // Added total cost
    - status: string
    - createdAt: timestamp
    - updatedAt: timestamp
@@ -344,6 +346,7 @@ Collections:
    - name: string
    - category: string
    - basePrice: number
+   - baseCost: number  // Added base cost
    - createdAt: timestamp
 
 4. dealerPrices
@@ -351,6 +354,7 @@ Collections:
    - dealerId: string
    - testId: string
    - price: number
+   - cost: number  // Added dealer-specific cost
    - updatedAt: timestamp
 
 5. financials
@@ -361,6 +365,8 @@ Collections:
    - amount: number
    - description: string
    - applicationId: string (optional)
+   - category: string (test_cost/patient_payment/other)  // Added category
+   - testId: string (optional)  // Added for test-specific entries
    - createdAt: timestamp
 
 6. testGroups
@@ -372,5 +378,16 @@ Collections:
    - id: string
    - name: string
    - tests: string[]
+   - createdAt: timestamp
+
+8. financialReports
+   - id: string
+   - period: string (daily/weekly/monthly)
+   - startDate: timestamp
+   - endDate: timestamp
+   - totalRevenue: number
+   - totalCost: number
+   - profit: number
+   - dealerId: string (optional)
    - createdAt: timestamp
 */ 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useNavigate } from 'react-router-dom';
@@ -10,34 +10,89 @@ const Applications = () => {
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showNewApplicationAlert, setShowNewApplicationAlert] = useState(false);
+  const [newApplication, setNewApplication] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchApplications = async () => {
-      try {
-        const q = query(collection(db, 'applications'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        const apps = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setApplications(apps);
-      } catch (error) {
-        console.error('Error fetching applications:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchApplications();
+
+    // Yeni başvuruları dinle
+    const q = query(collection(db, 'applications'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const newApp = { id: change.doc.id, ...change.doc.data() };
+          setApplications(prev => [newApp, ...prev]);
+          
+          // Yeni başvuru bildirimi göster
+          setNewApplication(newApp);
+          setShowNewApplicationAlert(true);
+          
+          // 5 saniye sonra bildirimi kapat
+          setTimeout(() => {
+            setShowNewApplicationAlert(false);
+          }, 5000);
+        }
+      });
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  const fetchApplications = async () => {
+    try {
+      setIsLoading(true);
+      const q = query(collection(db, 'applications'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const apps = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setApplications(apps);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (applicationId) => {
+    if (!window.confirm('Bu başvuruyu silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteDoc(doc(db, 'applications', applicationId));
+      setApplications(prev => prev.filter(app => app.id !== applicationId));
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert('Başvuru silinirken bir hata oluştu');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filteredApplications = applications.filter(app => {
+    if (!searchTerm) return true;
+    
     const searchLower = searchTerm.toLowerCase();
-    return (
-      app.patientInfo.name.toLowerCase().includes(searchLower) ||
-      app.patientInfo.tcNo.includes(searchTerm)
+    const searchFields = [
+      app.patientInfo.name,
+      app.patientInfo.tcNo,
+      app.patientInfo.birthDate,
+      app.patientInfo.gender,
+      app.dealerName,
+      app.doctorNotes,
+      app.totalPrice?.toString(),
+      new Date(app.createdAt?.toDate()).toLocaleDateString('tr-TR'),
+      ...app.selectedTests.map(test => test.name)
+    ];
+
+    return searchFields.some(field => 
+      field && field.toString().toLowerCase().includes(searchLower)
     );
   });
 
@@ -241,6 +296,39 @@ const Applications = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* New Application Alert */}
+        {showNewApplicationAlert && newApplication && (
+          <div className="fixed top-20 right-4 z-50 animate-fade-in-down">
+            <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-green-500">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-900">Yeni Başvuru</h3>
+                  <div className="mt-1 text-sm text-gray-500">
+                    <p>{newApplication.patientInfo.name}</p>
+                    <p className="text-xs">{new Date(newApplication.createdAt.toDate()).toLocaleString('tr-TR')}</p>
+                  </div>
+                </div>
+                <div className="ml-4 flex-shrink-0 flex">
+                  <button
+                    className="inline-flex text-gray-400 hover:text-gray-500"
+                    onClick={() => setShowNewApplicationAlert(false)}
+                  >
+                    <span className="sr-only">Kapat</span>
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900">Başvuru Listesi</h1>
@@ -252,7 +340,7 @@ const Applications = () => {
             <input
               type="text"
               className="w-full px-4 py-2 border outline-none border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="TCKN veya Ad Soyad ile ara..."
+              placeholder="Ara... (Ad, TCKN, Test, Tarih, Bayi vs.)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -340,18 +428,36 @@ const Applications = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleGeneratePDF(app)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          PDF
-                        </button>
-                        <button
-                          onClick={() => handleEdit(app.id)}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          Form
-                        </button>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => handleGeneratePDF(app)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="PDF İndir"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleEdit(app.id)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Düzenle"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(app.id)}
+                            className="text-red-600 hover:text-red-900"
+                            disabled={isDeleting}
+                            title="Sil"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
