@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, doc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, deleteDoc, onSnapshot, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import Cookies from 'js-cookie';
+
+const NEW_APPLICATION_COOKIE = 'new_application_alert';
+const NEW_APPLICATION_TIMESTAMP_COOKIE = 'new_application_timestamp';
+const APPLICATIONS_COOKIE = 'applications_data';
+const READ_NOTIFICATIONS_COOKIE = 'read_notifications';
 
 const Applications = () => {
   const [applications, setApplications] = useState([]);
@@ -15,6 +21,48 @@ const Applications = () => {
   const [newApplication, setNewApplication] = useState(null);
   const navigate = useNavigate();
 
+  const formatDate = (date) => {
+    if (!date) return '';
+    if (typeof date === 'string') {
+      return new Date(date).toLocaleString('tr-TR');
+    }
+    if (date instanceof Timestamp) {
+      return date.toDate().toLocaleString('tr-TR');
+    }
+    return date.toLocaleString('tr-TR');
+  };
+
+  // Cookie yardımcı fonksiyonları
+  const setCookie = (name, value, expires = 7) => {
+    Cookies.set(name, JSON.stringify(value), { 
+      expires, 
+      secure: true,
+      sameSite: 'strict'
+    });
+  };
+
+  const getCookie = (name) => {
+    const value = Cookies.get(name);
+    return value ? JSON.parse(value) : null;
+  };
+
+  const removeCookie = (name) => {
+    Cookies.remove(name);
+  };
+
+  const isNotificationRead = (notificationId) => {
+    const readNotifications = getCookie(READ_NOTIFICATIONS_COOKIE) || [];
+    return readNotifications.includes(notificationId);
+  };
+
+  const markNotificationAsRead = (notificationId) => {
+    const readNotifications = getCookie(READ_NOTIFICATIONS_COOKIE) || [];
+    if (!readNotifications.includes(notificationId)) {
+      readNotifications.push(notificationId);
+      setCookie(READ_NOTIFICATIONS_COOKIE, readNotifications);
+    }
+  };
+
   useEffect(() => {
     fetchApplications();
 
@@ -23,17 +71,38 @@ const Applications = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
-          const newApp = { id: change.doc.id, ...change.doc.data() };
-          setApplications(prev => [newApp, ...prev]);
+          const newApp = { 
+            id: change.doc.id, 
+            ...change.doc.data(),
+            createdAt: change.doc.data().createdAt.toDate().toISOString()
+          };
+
+          // Mevcut başvuruları kontrol et ve tekrarları önle
+          setApplications(prev => {
+            const exists = prev.some(app => app.id === newApp.id);
+            if (!exists) {
+              const updatedApps = [newApp, ...prev];
+              setCookie(APPLICATIONS_COOKIE, updatedApps);
+              return updatedApps;
+            }
+            return prev;
+          });
           
-          // Yeni başvuru bildirimi göster
-          setNewApplication(newApp);
-          setShowNewApplicationAlert(true);
-          
-          // 5 saniye sonra bildirimi kapat
-          setTimeout(() => {
-            setShowNewApplicationAlert(false);
-          }, 5000);
+          // Eğer başvuru okunmamışsa bildirim göster
+          if (!newApp.read) {
+            setNewApplication(newApp);
+            setShowNewApplicationAlert(true);
+            
+            setCookie(NEW_APPLICATION_COOKIE, newApp);
+            setCookie(NEW_APPLICATION_TIMESTAMP_COOKIE, Date.now());
+            
+            // 5 saniye sonra bildirimi kapat
+            setTimeout(() => {
+              setShowNewApplicationAlert(false);
+              removeCookie(NEW_APPLICATION_COOKIE);
+              removeCookie(NEW_APPLICATION_TIMESTAMP_COOKIE);
+            }, 5000);
+          }
         }
       });
     });
@@ -44,13 +113,32 @@ const Applications = () => {
   const fetchApplications = async () => {
     try {
       setIsLoading(true);
+      // Önce cookie'den verileri kontrol et
+      const savedApplications = getCookie(APPLICATIONS_COOKIE);
+      if (savedApplications) {
+        setApplications(savedApplications);
+      }
+
+      // Firestore'dan güncel verileri al
       const q = query(collection(db, 'applications'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       const apps = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        createdAt: doc.data().createdAt.toDate().toISOString()
       }));
-      setApplications(apps);
+
+      // Tekrarları önle ve güncel verileri kaydet
+      const uniqueApps = apps.reduce((acc, current) => {
+        const exists = acc.find(item => item.id === current.id);
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+
+      setApplications(uniqueApps);
+      setCookie(APPLICATIONS_COOKIE, uniqueApps);
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {
@@ -66,7 +154,11 @@ const Applications = () => {
     try {
       setIsDeleting(true);
       await deleteDoc(doc(db, 'applications', applicationId));
-      setApplications(prev => prev.filter(app => app.id !== applicationId));
+      setApplications(prev => {
+        const updatedApps = prev.filter(app => app.id !== applicationId);
+        setCookie(APPLICATIONS_COOKIE, updatedApps);
+        return updatedApps;
+      });
     } catch (error) {
       console.error('Error deleting application:', error);
       alert('Başvuru silinirken bir hata oluştu');
@@ -87,7 +179,7 @@ const Applications = () => {
       app.dealerName,
       app.doctorNotes,
       app.totalPrice?.toString(),
-      new Date(app.createdAt?.toDate()).toLocaleDateString('tr-TR'),
+      formatDate(app.createdAt),
       ...app.selectedTests.map(test => test.name)
     ];
 
@@ -130,7 +222,7 @@ const Applications = () => {
       // Form Number and Date
       doc.setFontSize(10);
       doc.text(`Form No: ${application.id.slice(0, 8)}`, 20, 60);
-      const date = new Date(application.createdAt.toDate()).toLocaleDateString('tr-TR');
+      const date = formatDate(application.createdAt);
       doc.text(`Tarih: ${date}`, 170, 60, { align: 'right' });
 
       // Patient Information Card
@@ -283,6 +375,22 @@ const Applications = () => {
     navigate(`/form/${applicationId}`);
   };
 
+  const handleNotificationClose = async (notificationId) => {
+    try {
+      // Firestore'da başvuruyu okundu olarak işaretle
+      await updateDoc(doc(db, 'applications', notificationId), {
+        read: true,
+        updatedAt: new Date()
+      });
+
+      setShowNewApplicationAlert(false);
+      removeCookie(NEW_APPLICATION_COOKIE);
+      removeCookie(NEW_APPLICATION_TIMESTAMP_COOKIE);
+    } catch (error) {
+      console.error('Error marking application as read:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -310,13 +418,13 @@ const Applications = () => {
                   <h3 className="text-sm font-medium text-gray-900">Yeni Başvuru</h3>
                   <div className="mt-1 text-sm text-gray-500">
                     <p>{newApplication.patientInfo.name}</p>
-                    <p className="text-xs">{new Date(newApplication.createdAt.toDate()).toLocaleString('tr-TR')}</p>
+                    <p className="text-xs">{formatDate(newApplication.createdAt)}</p>
                   </div>
                 </div>
                 <div className="ml-4 flex-shrink-0 flex">
                   <button
                     className="inline-flex text-gray-400 hover:text-gray-500"
-                    onClick={() => setShowNewApplicationAlert(false)}
+                    onClick={() => handleNotificationClose(newApplication.id)}
                   >
                     <span className="sr-only">Kapat</span>
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

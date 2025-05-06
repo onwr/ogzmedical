@@ -10,8 +10,9 @@ import {
   ArrowUpCircleIcon,
   BellIcon
 } from '@heroicons/react/24/outline';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import Cookies from 'js-cookie';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -22,12 +23,50 @@ const navigation = [
   { name: 'Test Sıralaması', href: '/admin/test-order', icon: ArrowUpCircleIcon },
 ];
 
+const NOTIFICATIONS_COOKIE = 'admin_notifications';
+const UNREAD_COUNT_COOKIE = 'admin_unread_count';
+
+const formatDate = (date) => {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    return new Date(date).toLocaleString('tr-TR');
+  }
+  if (date instanceof Timestamp) {
+    return date.toDate().toLocaleString('tr-TR');
+  }
+  return date.toLocaleString('tr-TR');
+};
+
 const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    const savedNotifications = Cookies.get(NOTIFICATIONS_COOKIE);
+    return savedNotifications ? JSON.parse(savedNotifications) : [];
+  });
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(() => {
+    const savedCount = Cookies.get(UNREAD_COUNT_COOKIE);
+    return savedCount ? parseInt(savedCount) : 0;
+  });
   const location = useLocation();
+
+  // Save notifications to cookie whenever they change
+  useEffect(() => {
+    Cookies.set(NOTIFICATIONS_COOKIE, JSON.stringify(notifications), { 
+      expires: 7,
+      secure: true,
+      sameSite: 'strict'
+    });
+  }, [notifications]);
+
+  // Save unread count to cookie whenever it changes
+  useEffect(() => {
+    Cookies.set(UNREAD_COUNT_COOKIE, unreadCount.toString(), {
+      expires: 7,
+      secure: true,
+      sameSite: 'strict'
+    });
+  }, [unreadCount]);
 
   useEffect(() => {
     // Son 24 saatteki yeni başvuruları dinle
@@ -46,38 +85,75 @@ const AdminLayout = ({ children }) => {
         .map(change => ({
           id: change.doc.id,
           ...change.doc.data(),
-          isRead: false
+          isRead: change.doc.data().read || false,
+          createdAt: change.doc.data().createdAt.toDate().toISOString()
         }));
 
       if (newNotifications.length > 0) {
-        setNotifications(prev => [...newNotifications, ...prev]);
-        setUnreadCount(prev => prev + newNotifications.length);
+        // Sadece okunmamış bildirimleri göster
+        const unreadNotifications = newNotifications.filter(n => !n.isRead);
         
-        // Bildirim sesi çal
-        const audio = new Audio('/notification.mp3');
-        audio.play().catch(() => {}); // Ses çalma hatası olursa sessizce devam et
+        if (unreadNotifications.length > 0) {
+          setNotifications(prev => {
+            const existingIds = new Set(prev.map(n => n.id));
+            const uniqueNewNotifications = unreadNotifications.filter(n => !existingIds.has(n.id));
+            return [...uniqueNewNotifications, ...prev];
+          });
+          setUnreadCount(prev => prev + unreadNotifications.length);
+          
+          // Bildirim sesi çal
+          const audio = new Audio('/notification.mp3');
+          audio.play().catch(() => {});
+        }
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  const markAsRead = (notificationId) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === notificationId
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+  const markAsRead = async (notificationId) => {
+    try {
+      // Firestore'da başvuruyu okundu olarak işaretle
+      await updateDoc(doc(db, 'applications', notificationId), {
+        read: true,
+        updatedAt: new Date()
+      });
+
+      // Bildirimleri güncelle
+      setNotifications(prev => {
+        const updatedNotifications = prev.map(notification =>
+          notification.id === notificationId
+            ? { ...notification, isRead: true }
+            : notification
+        );
+        return updatedNotifications;
+      });
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notification => ({ ...notification, isRead: true }))
-    );
-    setUnreadCount(0);
+  const markAllAsRead = async () => {
+    try {
+      // Tüm okunmamış bildirimleri Firestore'da güncelle
+      const unreadNotifications = notifications.filter(n => !n.isRead);
+      const updatePromises = unreadNotifications.map(notification =>
+        updateDoc(doc(db, 'applications', notification.id), {
+          read: true,
+          updatedAt: new Date()
+        })
+      );
+      await Promise.all(updatePromises);
+
+      // Bildirimleri güncelle
+      setNotifications(prev =>
+        prev.map(notification => ({ ...notification, isRead: true }))
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
 
   return (
@@ -180,7 +256,7 @@ const AdminLayout = ({ children }) => {
                   ) : (
                     notifications.map(notification => (
                       <div
-                        key={notification.id}
+                        key={`${notification.id}-${notification.createdAt}`}
                         className={`p-4 border-b hover:bg-gray-50 cursor-pointer ${
                           !notification.isRead ? 'bg-blue-50' : ''
                         }`}
@@ -195,7 +271,7 @@ const AdminLayout = ({ children }) => {
                               {notification.patientInfo.name}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {new Date(notification.createdAt.toDate()).toLocaleString('tr-TR')}
+                              {formatDate(notification.createdAt)}
                             </p>
                           </div>
                           {!notification.isRead && (

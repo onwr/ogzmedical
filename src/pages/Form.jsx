@@ -11,6 +11,28 @@ const Form = () => {
   const [application, setApplication] = useState(null);
   const [dealer, setDealer] = useState(null);
   const [showError, setShowError] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isDealerPanel, setIsDealerPanel] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const isDealerPanelPath = window.location.pathname.includes('bayipanel');
+    setIsDealerPanel(isDealerPanelPath);
+    if (isDealerPanelPath) {
+      setShowPasswordModal(true);
+    }
+  }, []);
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (password === 'ogzmed*fasdFA-') {
+      setIsAuthenticated(true);
+      setShowPasswordModal(false);
+    } else {
+      alert('Yanlış şifre!');
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -96,9 +118,42 @@ const Form = () => {
     );
   }
 
+  if (isDealerPanel && !isAuthenticated) {
+    return (
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-xl">
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Bayi Paneli</h3>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Şifre
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Giriş Yap
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <Table application={application} dealerName={dealer?.name} />
+      <Table application={application} dealerName={dealer?.name} showPrices={isDealerPanel} />
     </div>
   );
 };

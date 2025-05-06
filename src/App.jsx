@@ -77,6 +77,8 @@ const App = () => {
 
         <Route path='/:dealerName' element={<Home />} />
 
+        <Route path='/:dealerName/bayipanel' element={<Home />} />
+
         <Route path='/form/:applicationId' element={<Home />} />
       </Routes>
     </Router>

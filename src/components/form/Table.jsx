@@ -19,8 +19,8 @@ const setCookie = (name, value, days = 30) => {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`
 }
 
-const Table = ({ application }) => {
-  const { dealerName } = useParams()
+const Table = ({ application, dealerName, showPrices }) => {
+  const { dealerName: urlDealerName } = useParams()
   const navigate = useNavigate()
   const [testGroups, setTestGroups] = useState([])
   const [packages, setPackages] = useState([])
@@ -58,12 +58,12 @@ const Table = ({ application }) => {
   }, [application, testGroups])
 
   useEffect(() => {
-    if (dealerName) {
+    if (urlDealerName) {
       fetchDealer()
     }
     fetchTestGroups()
     fetchPackages()
-  }, [dealerName])
+  }, [urlDealerName])
 
   useEffect(() => {
     if (dealer?.id) {
@@ -80,7 +80,7 @@ const Table = ({ application }) => {
       const dealersSnapshot = await getDocs(dealersQuery)
       
       // Bayi adını küçük harfe çevir
-      const searchName = dealerName.toLowerCase()
+      const searchName = urlDealerName.toLowerCase()
       
       // Tüm aktif bayileri filtrele
       const foundDealer = dealersSnapshot.docs.find(doc => {
@@ -260,7 +260,8 @@ const Table = ({ application }) => {
         profit: totalPrice - totalCost,
         status: 'pending',
         updatedAt: new Date(),
-        doctorNotes
+        doctorNotes,
+        read: false
       }
 
       if (application) {
@@ -300,6 +301,7 @@ const Table = ({ application }) => {
   const handlePatientInfoChange = (newPatientInfo) => {
     setPatientInfo(prev => ({ ...prev, ...newPatientInfo }))
   }
+
 
   if (isLoading) {
     return (
@@ -360,7 +362,7 @@ const Table = ({ application }) => {
             </div>
           )}
 
-          <div className='w-full columns-4 gap-1'>
+          <div className='w-full columns-5 gap-1'>
             {testGroups.map((group, groupIndex) => (
               <div
                 key={group.id}
@@ -406,9 +408,18 @@ const Table = ({ application }) => {
                             )}
                           </span>
                         </span>
-                        <span className='truncate'>{test.name}</span>
+                        <span className='truncate'>
+                          {test.name} 
+                          {showPrices && (
+                            <span className='text-xs text-gray-500'>
+                              - {dealerPrices[test.id]
+                                ? `${dealerPrices[test.id]} TL`
+                                : test.basePrice}
+                            </span>
+                          )}
+                        </span>
                       </label>
-                    )
+                    );
                   })}
                 </div>
               </div>
