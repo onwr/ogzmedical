@@ -32,6 +32,7 @@ const Applications = () => {
     fetchApplications();
   }, []);
 
+
   const filteredApplications = applications.filter(app => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -264,96 +265,100 @@ const Applications = () => {
         </div>
 
         {/* Applications Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hasta Bilgisi
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Testler
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fiyat
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bayi
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Doktor Notu
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  İşlemler
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredApplications.map((app) => (
-                <tr key={app.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-4">
-                      <div className="flex gap-2">
-                        {app.patientInfo.photo && (
-                          <div className="w-12 h-12 rounded-lg overflow-hidden">
-                            <img
-                              src={app.patientInfo.photo}
-                              alt="Kimlik fotoğrafı"
-                              className="w-full h-full object-cover"
-                            />
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <div className="min-w-full inline-block align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Hasta Bilgisi
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Testler
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fiyat
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Bayi
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Doktor Notu
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İşlemler
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredApplications.map((app) => (
+                    <tr key={app.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-4">
+                          <div className="flex gap-2">
+                            {app.patientInfo.photo && (
+                              <div className="w-12 h-12 rounded-lg overflow-hidden">
+                                <img
+                                  src={app.patientInfo.photo}
+                                  alt="Kimlik fotoğrafı"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            {app.patientInfo.extraPhoto && (
+                              <div className="w-12 h-12 rounded-lg overflow-hidden">
+                                <img
+                                  src={app.patientInfo.extraPhoto}
+                                  alt="Ek fotoğraf"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {app.patientInfo.extraPhoto && (
-                          <div className="w-12 h-12 rounded-lg overflow-hidden">
-                            <img
-                              src={app.patientInfo.extraPhoto}
-                              alt="Ek fotoğraf"
-                              className="w-full h-full object-cover"
-                            />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{app.patientInfo.name}</div>
+                            <div className="text-sm text-gray-500">{app.patientInfo.tcNo}</div>
+                            <div className="text-sm text-gray-500">{app.patientInfo.birthDate}</div>
                           </div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{app.patientInfo.name}</div>
-                        <div className="text-sm text-gray-500">{app.patientInfo.tcNo}</div>
-                        <div className="text-sm text-gray-500">{app.patientInfo.birthDate}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
-                      {app.selectedTests.map(test => test.name).join(', ')}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{app.totalPrice} TL</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{app.dealerName}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap max-w-xs truncate">
-                    <div className="text-xs text-gray-700">
-                      {app.doctorNotes ? app.doctorNotes.slice(0, 80) : <span className="text-gray-300">-</span>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => handleGeneratePDF(app)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
-                    >
-                      PDF
-                    </button>
-                    <button
-                      onClick={() => handleEdit(app.id)}
-                      className="text-green-600 hover:text-green-900"
-                    >
-                      Form
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {app.selectedTests.map(test => test.name).join(', ')}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{app.totalPrice} TL</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{app.dealerName}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap max-w-xs truncate">
+                        <div className="text-xs text-gray-700">
+                          {app.doctorNotes ? app.doctorNotes.slice(0, 80) : <span className="text-gray-300">-</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleGeneratePDF(app)}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
+                          PDF
+                        </button>
+                        <button
+                          onClick={() => handleEdit(app.id)}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          Form
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </AdminLayout>

@@ -57,10 +57,10 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
   }
 
   return (
-    <div className='space-y-2'>
-      <p className='ml-2 text-xl mt-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
-      <div className='rounded-lg bg-white p-2 shadow'>
-        <div className='flex items-center justify-between gap-2'>
+    <div>
+      <p className='ml-2 text-lg mt-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
+      <div className='rounded-lg bg-white px-2 pb-1'>
+        <div className='flex items-center justify-between gap-0.5'>
           <div className='w-full'>
             <input
               type='text'
@@ -69,15 +69,17 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               onChange={handleChange}
               className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
               placeholder='Ad Soyad'
+              required
             />
           </div>
           <div className='w-full'>
             <input
-              type='date'
+              type='text'
               name='birthDate'
               value={patientInfo.birthDate}
               onChange={handleChange}
               className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
+              placeholder='Doğum Tarihi'
             />
           </div>
           <div className='w-full'>
@@ -104,17 +106,17 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
               name='gender'
               value={patientInfo.gender}
               onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-2 py-1 text-[7px] md:text-xs'
+              className='w-full rounded border border-gray-300 px-1 py-1 text-[7px] md:text-xs'
             >
-              <option value=''>Seçiniz</option>
-              <option value='erkek'>Erkek</option>
-              <option value='kadın'>Kadın</option>
+              <option value=''>Seç</option>
+              <option value='erkek'>E</option>
+              <option value='kadın'>K</option>
             </select>
           </div>
         </div>
 
         <div className='flex items-center gap-4 mt-2'>
-          {/* Kimlik Fotoğrafı */}
+          {/* Evrak Yükle */}
           <div className='relative'>
             <input
               type='file'
@@ -130,7 +132,7 @@ const Header = ({ onPatientInfoChange, initialValues = {} }) => {
                 isUploading && uploadingType === 'photo' ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              {isUploading && uploadingType === 'photo' ? 'Yükleniyor...' : 'Kimlik Fotoğrafı'}
+              {isUploading && uploadingType === 'photo' ? 'Yükleniyor...' : 'Evrak Yükle'}
             </label>
             {patientInfo.photo && (
               <div className='relative w-10 h-8'>

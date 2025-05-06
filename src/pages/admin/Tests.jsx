@@ -24,6 +24,8 @@ const Tests = () => {
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
   const [newPackageName, setNewPackageName] = useState('');
   const [newPackageTests, setNewPackageTests] = useState([]);
+  const [isUploadingPackage, setIsUploadingPackage] = useState(false);
+  const [uploadingPackageId, setUploadingPackageId] = useState(null);
 
   useEffect(() => {
     fetchTests();
@@ -255,6 +257,37 @@ const Tests = () => {
     }
   };
 
+  const handlePackageImageUpload = async (e, packageId) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      setIsUploadingPackage(true)
+      setUploadingPackageId(packageId)
+      const formData = new FormData()
+      formData.append('image', file)
+
+      const response = await fetch('https://api.imgbb.com/1/upload?key=48e17415bdf865ecc15389b796c9ec79', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        await updateDoc(doc(db, 'packages', packageId), {
+          image: data.data.url
+        })
+        fetchPackages()
+      }
+    } catch (error) {
+      console.error('Error uploading package image:', error)
+      alert('Paket görseli yüklenirken bir hata oluştu')
+    } finally {
+      setIsUploadingPackage(false)
+      setUploadingPackageId(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -361,7 +394,7 @@ const Tests = () => {
         </div>
 
         {/* Tests Table */}
-        <div className='overflow-hidden rounded-lg bg-white shadow'>
+        <div className='overflow-x-auto rounded-lg bg-white shadow'>
           <table className='min-w-full divide-y divide-gray-200'>
             <thead className='bg-gray-50'>
               <tr>
@@ -469,8 +502,8 @@ const Tests = () => {
 
         {/* Packages List */}
         <div className='rounded-lg bg-white p-4 shadow'>
-          <div className='flex items-center justify-between mb-2'>
-            <h2 className='mb-2 text-lg font-medium text-gray-900'>Paketler</h2>
+          <div className='flex items-center justify-between mb-4'>
+            <h2 className='text-lg font-medium text-gray-900'>Paketler</h2>
             <button
               onClick={() => setIsPackageModalOpen(true)}
               className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
@@ -478,19 +511,51 @@ const Tests = () => {
               Yeni Paket Ekle
             </button>
           </div>
-          <div className='flex flex-wrap gap-2'>
+          <div className='grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4'>
             {packages.map((pkg) => (
-              <div key={pkg.id} className='flex items-center space-x-2 rounded-lg bg-gray-100 px-3 py-2'>
-                <span className='text-sm font-medium text-gray-700'>{pkg.name}</span>
-                <span className='text-xs text-gray-500'>({pkg.tests.length} test)</span>
-                <button
-                  onClick={() => handleDeletePackage(pkg.id)}
-                  className='text-red-600 hover:text-red-900'
-                >
-                  <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
-                    <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
-                  </svg>
-                </button>
+              <div key={pkg.id} className='group relative rounded-lg border border-gray-200 p-3'>
+                <div className='aspect-w-16 aspect-h-9 mb-2 overflow-hidden rounded-lg bg-gray-100'>
+                  {pkg.image ? (
+                    <img
+                      src={pkg.image}
+                      alt={pkg.name}
+                      className='h-60 w-60 object-contain mx-auto'
+                    />
+                  ) : (
+                    <div className='flex h-full items-center justify-center bg-gray-100'>
+                      <span className='text-sm text-gray-400'>Görsel Yok</span>
+                    </div>
+                  )}
+                  <input
+                    type='file'
+                    accept='image/*'
+                    onChange={(e) => handlePackageImageUpload(e, pkg.id)}
+                    className='hidden'
+                    id={`package-image-${pkg.id}`}
+                  />
+                  <label
+                    htmlFor={`package-image-${pkg.id}`}
+                    className='absolute inset-0 flex cursor-pointer items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100'
+                  >
+                    <span className='rounded bg-white px-2 py-1 text-xs text-gray-700'>
+                      {isUploadingPackage && uploadingPackageId === pkg.id ? 'Yükleniyor...' : 'Görsel Yükle'}
+                    </span>
+                  </label>
+                </div>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <h4 className='text-sm font-medium text-gray-900'>{pkg.name}</h4>
+                    <p className='text-xs text-gray-500'>{pkg.tests.length} test</p>
+                  </div>
+                  <button
+                    onClick={() => handleDeletePackage(pkg.id)}
+                    className='text-red-600 hover:text-red-900'
+                  >
+                    <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
+                      <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>

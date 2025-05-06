@@ -126,7 +126,39 @@ const Table = ({ application }) => {
         })
       }
 
-      setTestGroups(groups)
+      // Define the order of groups
+      const groupOrder = [
+        'BİYOKİMYA',
+        'HEMATOLOJİ',
+        'HEPATİT MARKERLERİ',
+        'MİKROBİYOLOJİ',
+        'HORMONLAR',
+        'SEROLOJİ',
+        'GAİTA',
+        'İDRAR',
+        'TÜMÖR MARKERLERİ',
+        'ANTENATAL TESTLER',
+        'ALLERJİ',
+        'MULTİPLEX PCR TESTLERİ'
+      ]
+
+      // Sort groups according to the specified order
+      const sortedGroups = groups.sort((a, b) => {
+        const indexA = groupOrder.indexOf(a.title)
+        const indexB = groupOrder.indexOf(b.title)
+        
+        // If both groups are in the order list, sort by their position
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB
+        }
+        // If only one group is in the order list, prioritize it
+        if (indexA !== -1) return -1
+        if (indexB !== -1) return 1
+        // If neither group is in the order list, maintain original order
+        return 0
+      })
+
+      setTestGroups(sortedGroups)
     } catch (error) {
       console.error('Error fetching test groups:', error)
     } finally {
@@ -206,7 +238,7 @@ const Table = ({ application }) => {
   }
 
   const handleCreateApplication = async () => {
-    if (!patientInfo.name || !patientInfo.tcNo || !patientInfo.birthDate || !patientInfo.gender) {
+    if (!patientInfo.name) {
       alert('Lütfen hasta bilgilerini eksiksiz doldurun')
       return
     }
@@ -294,36 +326,56 @@ const Table = ({ application }) => {
           <div className='mb-1 flex items-center justify-between'>
             <button
               onClick={() => setIsModalOpen(true)}
-              className='rounded-sm md:rounded-lg bg-blue-600 px-4 py-0.5 md:py-2 text-[7px] md:text-sm font-medium text-white hover:bg-blue-700'
+              className='rounded-sm md:rounded-lg bg-blue-600 p-1 md:py-2 text-[7px] md:text-sm font-medium text-white hover:bg-blue-700'
             >
               Paket Seç
             </button>
           </div>
 
           {isModalOpen && (
-            <div className='bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center bg-black/30'>
-              <div className='flex min-w-[220px] flex-col gap-2 rounded bg-white p-4 shadow-lg'>
-                <div className='mb-2 text-xs font-bold text-gray-700'>Paket Seç</div>
-                {packages.map((pkg) => (
+            <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm'>
+              <div className='w-full max-w-2xl rounded-lg bg-white p-4 shadow-lg'>
+                <div className='mb-4 flex items-center justify-between'>
+                  <h3 className='text-lg font-medium text-gray-900'>Paketler</h3>
                   <button
-                    key={pkg.id}
-                    className='w-full rounded border border-blue-200 px-2 py-1 text-left text-xs text-blue-700 hover:bg-blue-100'
-                    onClick={() => handleSelectPackage(pkg.tests)}
+                    onClick={() => setIsModalOpen(false)}
+                    className='text-gray-400 hover:text-gray-500'
                   >
-                    {pkg.name}
+                    <svg className='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                    </svg>
                   </button>
-                ))}
-                <button
-                  className='mt-2 text-xs text-gray-500 hover:text-blue-600'
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Kapat
-                </button>
+                </div>
+                <div className='grid grid-cols-2 gap-4 md:grid-cols-3'>
+                  {packages.map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className='group relative cursor-pointer rounded-lg border border-gray-200 p-3 hover:border-blue-500'
+                      onClick={() => handleSelectPackage(pkg.tests)}
+                    >
+                      <div className='aspect-w-16 aspect-h-9 mb-2 overflow-hidden rounded-lg bg-gray-100'>
+                        {pkg.image ? (
+                          <img
+                            src={pkg.image}
+                            alt={pkg.name}
+                            className='h-full w-full object-cover'
+                          />
+                        ) : (
+                          <div className='flex h-full items-center justify-center bg-gray-100'>
+                            <span className='text-sm text-gray-400'>Görsel Yok</span>
+                          </div>
+                        )}
+                      </div>
+                      <h4 className='text-sm font-medium text-gray-900'>{pkg.name}</h4>
+                      <p className='mt-1 text-xs text-gray-500'>{pkg.tests.length} test</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          <div className='w-full columns-4 gap-1'>
+          <div className='w-full columns-5 gap-1'>
             {testGroups.map((group, groupIndex) => (
               <div
                 key={group.id}
@@ -389,7 +441,7 @@ const Table = ({ application }) => {
               onClick={handleCreateApplication}
               className='rounded-sm md:rounded-lg bg-blue-600 px-6 py-1 md:py-2 text-xs md:text-sm font-medium text-white hover:bg-blue-700'
             >
-              {application ? 'Başvuruyu Güncelle' : 'Başvuru Oluştur'}
+              {application ? 'Başvuruyu Güncelle' : 'Laboratuvara Gönder'}
             </button>
           </div>
         </div>
