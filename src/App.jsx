@@ -9,7 +9,7 @@ import Tests from './pages/admin/Tests';
 import Finance from './pages/admin/Finance';
 import Login from './pages/admin/Login';
 import Home from './pages/Form';
-
+import TestOrder from './pages/admin/TestOrder';
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +65,11 @@ const App = () => {
         <Route
           path='/admin/finance'
           element={isAuthenticated ? <Finance /> : <Navigate to='/admin/login' replace />}
+        />
+
+        <Route
+          path='/admin/test-order'
+          element={isAuthenticated ? <TestOrder /> : <Navigate to='/admin/login' replace />}
         />
 
         {/* Public Routes */}

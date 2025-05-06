@@ -6,8 +6,8 @@ import {
   UserGroupIcon,
   BeakerIcon,
   BanknotesIcon,
-  DocumentTextIcon,
-  ArrowLeftOnRectangleIcon
+  ArrowLeftOnRectangleIcon,
+  ArrowUpCircleIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -16,6 +16,7 @@ const navigation = [
   { name: 'Bayiler', href: '/admin/dealers', icon: UserGroupIcon },
   { name: 'Testler', href: '/admin/tests', icon: BeakerIcon },
   { name: 'Finans', href: '/admin/finance', icon: BanknotesIcon },
+  { name: 'Test Sıralaması', href: '/admin/test-order', icon: ArrowUpCircleIcon },
 ];
 
 const AdminLayout = ({ children }) => {

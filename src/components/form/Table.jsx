@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { collection, query, where, getDocs, addDoc, getDoc, doc, updateDoc, orderBy } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, getDoc, doc, updateDoc, orderBy, writeBatch } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import Header from '@components/Header'
 
@@ -115,10 +115,25 @@ const Table = ({ application }) => {
           where('groupId', '==', groupDoc.id)
         )
         const testsSnapshot = await getDocs(testsQuery)
-        const tests = testsSnapshot.docs.map(doc => ({
+        let tests = testsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }))
+
+        // Eğer testlerin order değeri yoksa, otomatik olarak ekle
+        const needsOrderUpdate = tests.some(test => test.order === undefined)
+        if (needsOrderUpdate) {
+          const batch = writeBatch(db)
+          tests = tests.map((test, index) => {
+            const testRef = doc(db, 'tests', test.id)
+            batch.update(testRef, { order: index })
+            return { ...test, order: index }
+          })
+          await batch.commit()
+        }
+
+        // Order'a göre sırala
+        tests.sort((a, b) => (a.order || 0) - (b.order || 0))
 
         groups.push({
           id: groupDoc.id,
