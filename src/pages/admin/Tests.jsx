@@ -23,10 +23,19 @@ const Tests = () => {
   });
   const [packages, setPackages] = useState([]);
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [isEditPackageModalOpen, setIsEditPackageModalOpen] = useState(false);
+  const [editingPackage, setEditingPackage] = useState(null);
+  const [packageForm, setPackageForm] = useState({
+    name: '',
+    price: '',
+    tests: []
+  });
   const [newPackageName, setNewPackageName] = useState('');
   const [newPackageTests, setNewPackageTests] = useState([]);
+  const [newPackagePrice, setNewPackagePrice] = useState('');
   const [isUploadingPackage, setIsUploadingPackage] = useState(false);
   const [uploadingPackageId, setUploadingPackageId] = useState(null);
+  const [testSearchTerm, setTestSearchTerm] = useState('');
 
   useEffect(() => {
     fetchTests();
@@ -274,10 +283,12 @@ const Tests = () => {
       await addDoc(collection(db, 'packages'), {
         name: newPackageName,
         tests: newPackageTests,
+        price: newPackagePrice ? Number(newPackagePrice) : null,
         createdAt: new Date()
       });
       setNewPackageName('');
       setNewPackageTests([]);
+      setNewPackagePrice('');
       setIsPackageModalOpen(false);
       fetchPackages();
     } catch (error) {
@@ -327,6 +338,56 @@ const Tests = () => {
     }
   }
 
+  const handleEditPackage = (pkg) => {
+    setEditingPackage(pkg);
+    setPackageForm({
+      name: pkg.name,
+      price: pkg.price || '',
+      tests: pkg.tests
+    });
+    setIsEditPackageModalOpen(true);
+  };
+
+  const handleUpdatePackage = async () => {
+    try {
+      const packageRef = doc(db, 'packages', editingPackage.id);
+      await updateDoc(packageRef, {
+        name: packageForm.name,
+        price: Number(packageForm.price),
+        tests: packageForm.tests,
+        updatedAt: new Date()
+      });
+      setIsEditPackageModalOpen(false);
+      setEditingPackage(null);
+      setPackageForm({ name: '', price: '', tests: [] });
+    } catch (error) {
+      console.error('Error updating package:', error);
+    }
+  };
+
+  const handlePackageTestChange = (test) => {
+    setPackageForm(prev => {
+      const isTestSelected = prev.tests.some(t => t.id === test.id);
+      let newTests;
+      
+      if (isTestSelected) {
+        newTests = prev.tests.filter(t => t.id !== test.id);
+      } else {
+        newTests = [...prev.tests, test];
+      }
+
+      // Calculate total price
+      const calculatedPrice = newTests.reduce((sum, test) => sum + (test.basePrice || 0), 0);
+
+      return {
+        ...prev,
+        tests: newTests,
+        calculatedPrice: calculatedPrice.toString(),
+        price: prev.price || calculatedPrice.toString() // Keep existing price if set
+      };
+    });
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -337,7 +398,6 @@ const Tests = () => {
     );
   }
 
-  console.log(tests);
 
   return (
     <AdminLayout>
@@ -596,35 +656,51 @@ const Tests = () => {
                       <span className='text-sm text-gray-400'>Görsel Yok</span>
                     </div>
                   )}
-                  <input
-                    type='file'
-                    accept='image/*'
-                    onChange={(e) => handlePackageImageUpload(e, pkg.id)}
-                    className='hidden'
-                    id={`package-image-${pkg.id}`}
-                  />
-                  <label
-                    htmlFor={`package-image-${pkg.id}`}
-                    className='absolute inset-0 flex cursor-pointer items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100'
-                  >
-                    <span className='rounded bg-white px-2 py-1 text-xs text-gray-700'>
-                      {isUploadingPackage && uploadingPackageId === pkg.id ? 'Yükleniyor...' : 'Görsel Yükle'}
-                    </span>
-                  </label>
                 </div>
                 <div className='flex items-center justify-between'>
                   <div>
                     <h4 className='text-sm font-medium text-gray-900'>{pkg.name}</h4>
                     <p className='text-xs text-gray-500'>{pkg.tests.length} test</p>
+                    {pkg.price && (
+                      <p className='text-xs font-medium text-blue-600'>{pkg.price} TL</p>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleDeletePackage(pkg.id)}
-                    className='text-red-600 hover:text-red-900'
-                  >
-                    <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
-                      <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
-                    </svg>
-                  </button>
+                  <div className="flex space-x-2">
+                    <input
+                      type='file'
+                      accept='image/*'
+                      onChange={(e) => handlePackageImageUpload(e, pkg.id)}
+                      className='hidden'
+                      id={`package-image-${pkg.id}`}
+                    />
+                    <label
+                      htmlFor={`package-image-${pkg.id}`}
+                      className='text-gray-600 hover:text-gray-900 cursor-pointer'
+                      title="Görsel Yükle"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      </svg>
+                    </label>
+                    <button
+                      onClick={() => handleEditPackage(pkg)}
+                      className='text-blue-600 hover:text-blue-900'
+                      title="Düzenle"
+                    >
+                      <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
+                        <path d='M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z' />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeletePackage(pkg.id)}
+                      className='text-red-600 hover:text-red-900'
+                      title="Sil"
+                    >
+                      <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
+                        <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -752,7 +828,7 @@ const Tests = () => {
       {/* Package Modal */}
       {isPackageModalOpen && (
         <div className='fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50'>
-          <div className='w-full max-w-md rounded-lg bg-white p-6'>
+          <div className='w-full max-w-2xl rounded-lg bg-white p-6'>
             <h2 className='mb-4 text-lg font-medium'>Yeni Paket Ekle</h2>
             <form onSubmit={handleAddPackage} className='space-y-4'>
               <div>
@@ -766,25 +842,74 @@ const Tests = () => {
                 />
               </div>
               <div>
-                <label className='block text-sm font-medium text-gray-700'>Testler</label>
-                <select
-                  multiple
-                  value={newPackageTests}
-                  onChange={(e) => setNewPackageTests(Array.from(e.target.selectedOptions, option => option.value))}
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 h-32'
-                  required
-                >
-                  {tests.map((test) => (
-                    <option key={test.id} value={test.name}>
-                      {test.name}
-                    </option>
-                  ))}
-                </select>
+                <label className='block text-sm font-medium text-gray-700'>Test Ara</label>
+                <input
+                  type='text'
+                  value={testSearchTerm}
+                  onChange={(e) => setTestSearchTerm(e.target.value)}
+                  placeholder='Test adı ile arama yapın...'
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-2'>Testler</label>
+                <div className='max-h-60 overflow-y-auto rounded-md border border-gray-300 p-2'>
+                  {tests
+                    .filter(test => 
+                      test.name.toLowerCase().includes(testSearchTerm.toLowerCase())
+                    )
+                    .map((test) => (
+                      <div key={test.id} className='flex items-center space-x-2 py-1'>
+                        <input
+                          type='checkbox'
+                          id={`new-package-test-${test.id}`}
+                          checked={newPackageTests.some(t => t.id === test.id)}
+                          onChange={() => {
+                            const isSelected = newPackageTests.some(t => t.id === test.id);
+                            if (isSelected) {
+                              setNewPackageTests(prev => prev.filter(t => t.id !== test.id));
+                            } else {
+                              setNewPackageTests(prev => [...prev, test]);
+                            }
+                          }}
+                          className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                        />
+                        <label htmlFor={`new-package-test-${test.id}`} className='text-sm text-gray-700'>
+                          {test.name} - {test.basePrice} TL
+                        </label>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Hesaplanan Fiyat (TL)</label>
+                <input
+                  type='number'
+                  value={newPackageTests.reduce((sum, test) => sum + (test.basePrice || 0), 0)}
+                  readOnly
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm bg-gray-50'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Paket Fiyatı (TL)</label>
+                <input
+                  type='number'
+                  value={newPackagePrice}
+                  onChange={(e) => setNewPackagePrice(e.target.value)}
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  placeholder="Özel fiyat giriniz"
+                />
               </div>
               <div className='flex justify-end space-x-3'>
                 <button
                   type='button'
-                  onClick={() => setIsPackageModalOpen(false)}
+                  onClick={() => {
+                    setIsPackageModalOpen(false);
+                    setNewPackageName('');
+                    setNewPackageTests([]);
+                    setNewPackagePrice('');
+                    setTestSearchTerm('');
+                  }}
                   className='rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
                 >
                   İptal
@@ -797,6 +922,110 @@ const Tests = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Package Edit Modal */}
+      {isEditPackageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Paket Düzenle</h3>
+              <button
+                onClick={() => setIsEditPackageModalOpen(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="packageName" className="block text-sm font-medium text-gray-700">
+                  Paket Adı
+                </label>
+                <input
+                  type="text"
+                  id="packageName"
+                  value={packageForm.name}
+                  onChange={(e) => setPackageForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700'>Test Ara</label>
+                <input
+                  type='text'
+                  value={testSearchTerm}
+                  onChange={(e) => setTestSearchTerm(e.target.value)}
+                  placeholder='Test adı ile arama yapın...'
+                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Testler
+                </label>
+                <div className="max-h-60 overflow-y-auto rounded-md border border-gray-300 p-2">
+                  {tests
+                    .filter(test => 
+                      test.name.toLowerCase().includes(testSearchTerm.toLowerCase())
+                    )
+                    .map((test) => (
+                      <div key={test.id} className="flex items-center space-x-2 py-1">
+                        <input
+                          type="checkbox"
+                          id={`test-${test.id}`}
+                          checked={packageForm.tests.some(t => t.id === test.id)}
+                          onChange={() => handlePackageTestChange(test)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor={`test-${test.id}`} className="text-sm text-gray-700">
+                          {test.name} - {test.basePrice} TL
+                        </label>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Hesaplanan Fiyat (TL)</label>
+                <input
+                  type="number"
+                  value={packageForm.tests.reduce((sum, test) => sum + (test.basePrice || 0), 0)}
+                  readOnly
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Paket Fiyatı (TL)</label>
+                <input
+                  type="number"
+                  value={packageForm.price}
+                  onChange={(e) => setPackageForm(prev => ({ ...prev, price: e.target.value }))}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Özel fiyat giriniz"
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setIsEditPackageModalOpen(false);
+                    setTestSearchTerm('');
+                  }}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={handleUpdatePackage}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  Güncelle
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -372,7 +372,7 @@ const Applications = () => {
   };
 
   const handleEdit = (applicationId) => {
-    navigate(`/form/${applicationId}`);
+    window.open(`/form/${applicationId}`, '_blank');
   };
 
   const handleNotificationClose = async (notificationId) => {
@@ -415,7 +415,7 @@ const Applications = () => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-gray-900">Yeni Başvuru</h3>
+                  <h3 className="text-sm font-medium text-gray-900">Yeni İstem</h3>
                   <div className="mt-1 text-sm text-gray-500">
                     <p>{newApplication.patientInfo.name}</p>
                     <p className="text-xs">{formatDate(newApplication.createdAt)}</p>
@@ -439,7 +439,7 @@ const Applications = () => {
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Başvuru Listesi</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">İstem Listesi</h1>
         </div>
 
         {/* Search Box */}

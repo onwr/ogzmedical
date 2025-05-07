@@ -146,6 +146,7 @@ const Dealers = () => {
                 <tr key={dealer.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{dealer.name}</div>
+                    <a href={`/${dealer.name}`} className="text-blue-600 text-xs hover:text-blue-900">Forma git</a>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{dealer.email}</div>

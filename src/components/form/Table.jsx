@@ -39,6 +39,8 @@ const Table = ({ application, dealerName, showPrices }) => {
     email: ''
   })
   const [dealerPrices, setDealerPrices] = useState({})
+  const [totalPrice, setTotalPrice] = useState(0)
+  const [selectedPackages, setSelectedPackages] = useState([]);
 
 
   useEffect(() => {
@@ -158,6 +160,7 @@ const Table = ({ application, dealerName, showPrices }) => {
         id: doc.id,
         ...doc.data()
       }))
+      console.log(packagesList)
       setPackages(packagesList)
     } catch (error) {
       console.error('Error fetching packages:', error)
@@ -197,29 +200,69 @@ const Table = ({ application, dealerName, showPrices }) => {
     })
   }
 
-  const handleSelectPackage = (packageTests) => {
-    const newSelectedTests = {}
-    testGroups.forEach((group, groupIndex) => {
-      group.tests.forEach((test, testIndex) => {
-        if (packageTests.includes(test.name)) {
-          newSelectedTests[`${groupIndex}-${testIndex}`] = true
+  const handleSelectPackage = (packageTests, packagePrice) => {
+    console.log('Package Price:', packagePrice);
+    console.log('Package Tests:', packageTests);
+    
+    const newSelectedTests = { ...selectedTests };
+    let totalPrice = 0;
+
+    // Add all tests from the package to selectedTests
+    packageTests.forEach((test) => {
+      // Find the group and test index for this test
+      testGroups.forEach((group, groupIndex) => {
+        const testIndex = group.tests.findIndex(t => t.id === test.id);
+        if (testIndex !== -1) {
+          const key = `${groupIndex}-${testIndex}`;
+          newSelectedTests[key] = true;
         }
-      })
-    })
-    setSelectedTests(newSelectedTests)
-    setIsModalOpen(false)
-  }
+      });
+    });
+
+    // Use package price if available, otherwise calculate from individual tests
+    if (packagePrice) {
+      totalPrice = Number(packagePrice);
+      console.log('Using package price:', totalPrice);
+      // Add package to selectedPackages
+      setSelectedPackages(prev => [...prev, { tests: packageTests, price: packagePrice }]);
+    } else {
+      totalPrice = packageTests.reduce((sum, test) => sum + (test.basePrice || 0), 0);
+      console.log('Using calculated price:', totalPrice);
+    }
+
+    setSelectedTests(newSelectedTests);
+    setTotalPrice((prev) => {
+      const newTotal = prev + totalPrice;
+      console.log('New total price:', newTotal);
+      return newTotal;
+    });
+    setIsModalOpen(false);
+  };
 
   const calculateTotalPrice = () => {
-    let total = 0
+    let total = 0;
+    
+    // First add up package prices
+    total += selectedPackages.reduce((sum, pkg) => sum + Number(pkg.price), 0);
+    
+    // Then add up individual test prices that aren't part of any package
     Object.keys(selectedTests).forEach(key => {
-      const [groupIndex, testIndex] = key.split('-').map(Number)
-      const test = testGroups[groupIndex].tests[testIndex]
-      const price = dealerPrices[test.id] || test.basePrice
-      total += price
-    })
-    return total
-  }
+      const [groupIndex, testIndex] = key.split('-').map(Number);
+      const test = testGroups[groupIndex].tests[testIndex];
+      
+      // Check if this test is part of any selected package
+      const isInPackage = selectedPackages.some(pkg => 
+        pkg.tests.some(t => t.id === test.id)
+      );
+      
+      if (!isInPackage) {
+        const price = dealerPrices[test.id] || test.basePrice;
+        total += price;
+      }
+    });
+    
+    return total;
+  };
 
   const handleCreateApplication = async () => {
     if (!patientInfo.name) {
@@ -334,29 +377,39 @@ const Table = ({ application, dealerName, showPrices }) => {
                   </button>
                 </div>
                 <div className='grid grid-cols-2 gap-4 md:grid-cols-3'>
-                  {packages.map((pkg) => (
-                    <div
-                      key={pkg.id}
-                      className='group relative cursor-pointer rounded-lg border border-gray-200 p-3 hover:border-blue-500'
-                      onClick={() => handleSelectPackage(pkg.tests)}
-                    >
-                      <div className='aspect-w-16 aspect-h-9 mb-2 overflow-hidden rounded-lg bg-gray-100'>
-                        {pkg.image ? (
-                          <img
-                            src={pkg.image}
-                            alt={pkg.name}
-                            className='h-full w-full object-cover'
-                          />
+                  {packages.map((pkg) => {
+                    console.log('Rendering package:', pkg);
+                    return (
+                      <div
+                        key={pkg.id}
+                        className='group relative cursor-pointer rounded-lg border border-gray-200 p-3 hover:border-blue-500'
+                        onClick={() => handleSelectPackage(pkg.tests, pkg.price)}
+                      >
+                        <div className='aspect-w-16 aspect-h-9 mb-2 overflow-hidden rounded-lg bg-gray-100'>
+                          {pkg.image ? (
+                            <img
+                              src={pkg.image}
+                              alt={pkg.name}
+                              className='h-full w-full object-cover'
+                            />
+                          ) : (
+                            <div className='flex h-full items-center justify-center bg-gray-100'>
+                              <span className='text-sm text-gray-400'>Görsel Yok</span>
+                            </div>
+                          )}
+                        </div>
+                        <h4 className='text-sm font-medium text-gray-900'>{pkg.name}</h4>
+                        <p className='mt-1 text-xs text-gray-500'>{pkg.tests.length} test</p>
+                        {pkg.price ? (
+                          <p className='mt-1 text-sm font-medium text-blue-600'>{pkg.price} TL</p>
                         ) : (
-                          <div className='flex h-full items-center justify-center bg-gray-100'>
-                            <span className='text-sm text-gray-400'>Görsel Yok</span>
-                          </div>
+                          <p className='mt-1 text-sm font-medium text-gray-500'>
+                            {pkg.tests.reduce((sum, test) => sum + (test.basePrice || 0), 0)} TL
+                          </p>
                         )}
                       </div>
-                      <h4 className='text-sm font-medium text-gray-900'>{pkg.name}</h4>
-                      <p className='mt-1 text-xs text-gray-500'>{pkg.tests.length} test</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
