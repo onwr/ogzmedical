@@ -13,7 +13,8 @@ const Dealers = () => {
     email: '',
     phone: '',
     address: '',
-    isActive: true
+    isActive: true,
+    password: ''
   });
 
   useEffect(() => {
@@ -40,8 +41,16 @@ const Dealers = () => {
     e.preventDefault();
     try {
       if (selectedDealer) {
-        await updateDoc(doc(db, 'dealers', selectedDealer.id), formData);
+        const updateData = { ...formData };
+        if (!updateData.password) {
+          delete updateData.password;
+        }
+        await updateDoc(doc(db, 'dealers', selectedDealer.id), updateData);
       } else {
+        if (!formData.password) {
+          alert('Lütfen bir şifre belirleyin');
+          return;
+        }
         await addDoc(collection(db, 'dealers'), {
           ...formData,
           createdAt: new Date()
@@ -54,7 +63,8 @@ const Dealers = () => {
         email: '',
         phone: '',
         address: '',
-        isActive: true
+        isActive: true,
+        password: ''
       });
       fetchDealers();
     } catch (error) {
@@ -69,7 +79,8 @@ const Dealers = () => {
       email: dealer.email,
       phone: dealer.phone,
       address: dealer.address,
-      isActive: dealer.isActive
+      isActive: dealer.isActive,
+      password: ''
     });
     setIsModalOpen(true);
   };
@@ -109,7 +120,8 @@ const Dealers = () => {
                 email: '',
                 phone: '',
                 address: '',
-                isActive: true
+                isActive: true,
+                password: ''
               });
               setIsModalOpen(true);
             }}
@@ -146,7 +158,7 @@ const Dealers = () => {
                 <tr key={dealer.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{dealer.name}</div>
-                    <a href={`/${dealer.name}`} className="text-blue-600 text-xs hover:text-blue-900">Forma git</a>
+                    <a href={`/${dealer.name}/bayipanel`} className="text-blue-600 text-xs hover:text-blue-900">Forma git</a>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{dealer.email}</div>
@@ -229,6 +241,18 @@ const Dealers = () => {
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   rows="3"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  {selectedDealer ? 'Yeni Şifre (Boş bırakılırsa değişmez)' : 'Şifre'}
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  required={!selectedDealer}
                 />
               </div>
               <div className="flex items-center">

@@ -26,7 +26,7 @@ const Form = () => {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    if (password === 'ogzmed*fasdFA-') {
+    if (dealer && password === dealer.password) {
       setIsAuthenticated(true);
       setShowPasswordModal(false);
     } else {
