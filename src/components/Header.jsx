@@ -75,7 +75,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               required
             />
           </div>
-          <div className='w-[15%]'>
+          <div className='w-[10%]'>
             <input
               type='text'
               name='birthDate'
@@ -85,7 +85,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               placeholder='Doğum Tarihi'
             />
           </div>
-          <div className='w-[15%]'>
+          <div className='w-[10%]'>
             <input
               type='date'
               name='requestDate'
@@ -94,7 +94,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
             />
           </div>
-          <div className='w-[15%]'>
+          <div className='w-[24%]'>
             <input
               type='text'
               name='tcNo'
