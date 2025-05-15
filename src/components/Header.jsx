@@ -61,7 +61,18 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
 
   return (
     <div>
-      <p className='text-md mt-2 ml-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
+      <div className='flex items-center justify-start gap-2'>
+        <p className='text-md mt-2 ml-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
+        <div className='w-[15%]'>
+          <input
+            type='date'
+            name='requestDate'
+            value={patientInfo.requestDate}
+            onChange={handleChange}
+            className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
+          />
+        </div>
+      </div>
       <div className='rounded-lg bg-white px-2 pb-1'>
         <div className='flex items-center justify-between gap-1'>
           <div className='w-[30%]'>
@@ -75,7 +86,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               required
             />
           </div>
-          <div className='w-[10%]'>
+          <div className='w-[20%]'>
             <input
               type='text'
               name='birthDate'
@@ -85,16 +96,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               placeholder='Doğum Tarihi'
             />
           </div>
-          <div className='w-[10%]'>
-            <input
-              type='date'
-              name='requestDate'
-              value={patientInfo.requestDate}
-              onChange={handleChange}
-              className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
-            />
-          </div>
-          <div className='w-[24%]'>
+          <div className='w-[30%]'>
             <input
               type='text'
               name='tcNo'
