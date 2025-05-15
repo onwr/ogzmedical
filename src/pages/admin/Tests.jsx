@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, where, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  where,
+  getDoc,
+  setDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import AdminLayout from '../../components/admin/AdminLayout';
 
@@ -19,7 +32,7 @@ const Tests = () => {
     category: '',
     groupId: '',
     basePrice: '',
-    costPrice: ''
+    costPrice: '',
   });
   const [packages, setPackages] = useState([]);
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
@@ -28,7 +41,7 @@ const Tests = () => {
   const [packageForm, setPackageForm] = useState({
     name: '',
     price: '',
-    tests: []
+    tests: [],
   });
   const [newPackageName, setNewPackageName] = useState('');
   const [newPackageTests, setNewPackageTests] = useState([]);
@@ -36,6 +49,8 @@ const Tests = () => {
   const [isUploadingPackage, setIsUploadingPackage] = useState(false);
   const [uploadingPackageId, setUploadingPackageId] = useState(null);
   const [testSearchTerm, setTestSearchTerm] = useState('');
+  const [packageSortBy, setPackageSortBy] = useState('createdAt');
+  const [packageSortOrder, setPackageSortOrder] = useState('desc');
 
   useEffect(() => {
     fetchTests();
@@ -48,30 +63,32 @@ const Tests = () => {
     try {
       const q = query(collection(db, 'tests'), orderBy('name'));
       const querySnapshot = await getDocs(q);
-      const testsList = querySnapshot.docs.map(doc => ({
+      const testsList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
 
       // Her test için bayi fiyatlarını çek
-      const testsWithPrices = await Promise.all(testsList.map(async (test) => {
-        const dealerPricesQuery = query(
-          collection(db, 'dealerPrices'),
-          where('testId', '==', test.id)
-        );
-        const dealerPricesSnapshot = await getDocs(dealerPricesQuery);
-        
-        const dealerPrices = {};
-        dealerPricesSnapshot.forEach(doc => {
-          const data = doc.data();
-          dealerPrices[data.dealerId] = data.price;
-        });
+      const testsWithPrices = await Promise.all(
+        testsList.map(async (test) => {
+          const dealerPricesQuery = query(
+            collection(db, 'dealerPrices'),
+            where('testId', '==', test.id)
+          );
+          const dealerPricesSnapshot = await getDocs(dealerPricesQuery);
 
-        return {
-          ...test,
-          dealerPrices
-        };
-      }));
+          const dealerPrices = {};
+          dealerPricesSnapshot.forEach((doc) => {
+            const data = doc.data();
+            dealerPrices[data.dealerId] = data.price;
+          });
+
+          return {
+            ...test,
+            dealerPrices,
+          };
+        })
+      );
 
       setTests(testsWithPrices);
     } catch (error) {
@@ -85,12 +102,12 @@ const Tests = () => {
     try {
       const q = query(collection(db, 'testGroups'));
       const querySnapshot = await getDocs(q);
-      const groupsList = querySnapshot.docs.map(doc => ({
+      const groupsList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        order: doc.data().order ?? Number.MAX_SAFE_INTEGER // Order değeri olmayanları en sona koy
+        order: doc.data().order ?? Number.MAX_SAFE_INTEGER, // Order değeri olmayanları en sona koy
       }));
-      
+
       // Order değerine göre sırala
       const sortedGroups = groupsList.sort((a, b) => a.order - b.order);
       setTestGroups(sortedGroups);
@@ -103,9 +120,9 @@ const Tests = () => {
     try {
       const q = query(collection(db, 'dealers'), where('isActive', '==', true));
       const querySnapshot = await getDocs(q);
-      const dealersList = querySnapshot.docs.map(doc => ({
+      const dealersList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
       setDealers(dealersList);
     } catch (error) {
@@ -115,13 +132,17 @@ const Tests = () => {
 
   const fetchPackages = async () => {
     try {
-      const q = query(collection(db, 'packages'), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, 'packages'), orderBy('order'));
       const querySnapshot = await getDocs(q);
-      const packagesList = querySnapshot.docs.map(doc => ({
+      const packagesList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        order: doc.data().order ?? Number.MAX_SAFE_INTEGER, // Order değeri olmayanları en sona koy
       }));
-      setPackages(packagesList);
+
+      // Order değerine göre sırala
+      const sortedPackages = packagesList.sort((a, b) => a.order - b.order);
+      setPackages(sortedPackages);
     } catch (error) {
       console.error('Error fetching packages:', error);
     }
@@ -134,14 +155,14 @@ const Tests = () => {
         await updateDoc(doc(db, 'tests', selectedTest.id), {
           ...formData,
           basePrice: Number(formData.basePrice),
-          costPrice: Number(formData.costPrice)
+          costPrice: Number(formData.costPrice),
         });
       } else {
         await addDoc(collection(db, 'tests'), {
           ...formData,
           basePrice: Number(formData.basePrice),
           costPrice: Number(formData.costPrice),
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }
       setIsModalOpen(false);
@@ -151,7 +172,7 @@ const Tests = () => {
         category: '',
         groupId: '',
         basePrice: '',
-        costPrice: ''
+        costPrice: '',
       });
       fetchTests();
     } catch (error) {
@@ -160,9 +181,9 @@ const Tests = () => {
   };
 
   const handleMoveGroup = async (groupId, direction) => {
-    const currentIndex = testGroups.findIndex(g => g.id === groupId);
+    const currentIndex = testGroups.findIndex((g) => g.id === groupId);
     if (
-      (direction === 'up' && currentIndex === 0) || 
+      (direction === 'up' && currentIndex === 0) ||
       (direction === 'down' && currentIndex === testGroups.length - 1)
     ) {
       return;
@@ -194,7 +215,7 @@ const Tests = () => {
       await setDoc(newGroupRef, {
         title: newGroupTitle,
         createdAt: new Date(),
-        order: testGroups.length // Yeni grubu en sona ekle
+        order: testGroups.length, // Yeni grubu en sona ekle
       });
       setNewGroupTitle('');
       setIsGroupModalOpen(false);
@@ -211,7 +232,7 @@ const Tests = () => {
       category: test.category,
       groupId: test.groupId,
       basePrice: test.basePrice.toString(),
-      costPrice: test.costPrice?.toString() || ''
+      costPrice: test.costPrice?.toString() || '',
     });
     setIsModalOpen(true);
   };
@@ -228,26 +249,26 @@ const Tests = () => {
   };
 
   const handlePriceChange = (testId, dealerId, price) => {
-    setPriceUpdates(prev => ({
+    setPriceUpdates((prev) => ({
       ...prev,
-      [`${dealerId}_${testId}`]: price
+      [`${dealerId}_${testId}`]: price,
     }));
   };
 
   const handlePriceUpdate = async () => {
     try {
       const batch = writeBatch(db);
-      
+
       Object.entries(priceUpdates).forEach(([key, price]) => {
         const [dealerId, testId] = key.split('_');
         const priceRef = doc(db, 'dealerPrices', key);
-        
+
         if (price) {
           batch.set(priceRef, {
             dealerId,
             testId,
             price: Number(price),
-            updatedAt: new Date()
+            updatedAt: new Date(),
           });
         } else {
           batch.delete(priceRef);
@@ -284,7 +305,8 @@ const Tests = () => {
         name: newPackageName,
         tests: newPackageTests,
         price: newPackagePrice ? Number(newPackagePrice) : null,
-        createdAt: new Date()
+        createdAt: new Date(),
+        order: packages.length, // Yeni paketi en sona ekle
       });
       setNewPackageName('');
       setNewPackageTests([]);
@@ -308,42 +330,45 @@ const Tests = () => {
   };
 
   const handlePackageImageUpload = async (e, packageId) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const file = e.target.files[0];
+    if (!file) return;
 
     try {
-      setIsUploadingPackage(true)
-      setUploadingPackageId(packageId)
-      const formData = new FormData()
-      formData.append('image', file)
+      setIsUploadingPackage(true);
+      setUploadingPackageId(packageId);
+      const formData = new FormData();
+      formData.append('image', file);
 
-      const response = await fetch('https://api.imgbb.com/1/upload?key=48e17415bdf865ecc15389b796c9ec79', {
-        method: 'POST',
-        body: formData
-      })
+      const response = await fetch(
+        'https://api.imgbb.com/1/upload?key=48e17415bdf865ecc15389b796c9ec79',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
 
-      const data = await response.json()
+      const data = await response.json();
       if (data.success) {
         await updateDoc(doc(db, 'packages', packageId), {
-          image: data.data.url
-        })
-        fetchPackages()
+          image: data.data.url,
+        });
+        fetchPackages();
       }
     } catch (error) {
-      console.error('Error uploading package image:', error)
-      alert('Paket görseli yüklenirken bir hata oluştu')
+      console.error('Error uploading package image:', error);
+      alert('Paket görseli yüklenirken bir hata oluştu');
     } finally {
-      setIsUploadingPackage(false)
-      setUploadingPackageId(null)
+      setIsUploadingPackage(false);
+      setUploadingPackageId(null);
     }
-  }
+  };
 
   const handleEditPackage = (pkg) => {
     setEditingPackage(pkg);
     setPackageForm({
       name: pkg.name,
       price: pkg.price || '',
-      tests: pkg.tests
+      tests: pkg.tests,
     });
     setIsEditPackageModalOpen(true);
   };
@@ -355,7 +380,7 @@ const Tests = () => {
         name: packageForm.name,
         price: Number(packageForm.price),
         tests: packageForm.tests,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       setIsEditPackageModalOpen(false);
       setEditingPackage(null);
@@ -366,12 +391,12 @@ const Tests = () => {
   };
 
   const handlePackageTestChange = (test) => {
-    setPackageForm(prev => {
-      const isTestSelected = prev.tests.some(t => t.id === test.id);
+    setPackageForm((prev) => {
+      const isTestSelected = prev.tests.some((t) => t.id === test.id);
       let newTests;
-      
+
       if (isTestSelected) {
-        newTests = prev.tests.filter(t => t.id !== test.id);
+        newTests = prev.tests.filter((t) => t.id !== test.id);
       } else {
         newTests = [...prev.tests, test];
       }
@@ -383,21 +408,83 @@ const Tests = () => {
         ...prev,
         tests: newTests,
         calculatedPrice: calculatedPrice.toString(),
-        price: prev.price || calculatedPrice.toString() // Keep existing price if set
+        price: prev.price || calculatedPrice.toString(), // Keep existing price if set
       };
     });
+  };
+
+  // Handle the package sort change
+  const handlePackageSortChange = (e) => {
+    const [field, order] = e.target.value.split('-');
+    setPackageSortBy(field);
+    setPackageSortOrder(order);
+    // Refetch packages with new sort order
+    setTimeout(() => {
+      fetchPackages();
+    }, 0);
+  };
+
+  // Sort packages function for client-side sorting
+  const getSortedPackages = () => {
+    return [...packages].sort((a, b) => {
+      if (packageSortBy === 'name') {
+        const comparison = a.name.localeCompare(b.name);
+        return packageSortOrder === 'asc' ? comparison : -comparison;
+      } else if (packageSortBy === 'price') {
+        const aPrice = a.price || 0;
+        const bPrice = b.price || 0;
+        return packageSortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
+      } else if (packageSortBy === 'testsCount') {
+        const aCount = a.tests.length;
+        const bCount = b.tests.length;
+        return packageSortOrder === 'asc' ? aCount - bCount : bCount - aCount;
+      } else {
+        // Default to createdAt sorting
+        // Convert timestamps to dates for comparison if needed
+        const aDate = a.createdAt?.toDate?.() || new Date(a.createdAt);
+        const bDate = b.createdAt?.toDate?.() || new Date(b.createdAt);
+        return packageSortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+      }
+    });
+  };
+
+  const handleMovePackage = async (packageId, direction) => {
+    const currentIndex = packages.findIndex((p) => p.id === packageId);
+    if (
+      (direction === 'up' && currentIndex === 0) ||
+      (direction === 'down' && currentIndex === packages.length - 1)
+    ) {
+      return;
+    }
+
+    const newPackages = [...packages];
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const [movedPackage] = newPackages.splice(currentIndex, 1);
+    newPackages.splice(newIndex, 0, movedPackage);
+
+    try {
+      const batch = writeBatch(db);
+      newPackages.forEach((pkg, index) => {
+        const packageRef = doc(db, 'packages', pkg.id);
+        batch.update(packageRef, { order: index });
+      });
+      await batch.commit();
+      setPackages(newPackages);
+    } catch (error) {
+      console.error('Error updating package order:', error);
+      alert('Paket sıralaması güncellenirken bir hata oluştu');
+    }
   };
 
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className='flex h-64 items-center justify-center'>
+          <div className='h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600'></div>
         </div>
       </AdminLayout>
     );
   }
-
 
   return (
     <AdminLayout>
@@ -420,7 +507,7 @@ const Tests = () => {
                   category: '',
                   groupId: '',
                   basePrice: '',
-                  costPrice: ''
+                  costPrice: '',
                 });
                 setIsModalOpen(true);
               }}
@@ -474,23 +561,41 @@ const Tests = () => {
                   <button
                     onClick={() => handleMoveGroup(group.id, 'up')}
                     disabled={index === 0}
-                    className={`p-1 rounded hover:bg-gray-200 ${
-                      index === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                    className={`rounded p-1 hover:bg-gray-200 ${
+                      index === 0 ? 'cursor-not-allowed opacity-50' : ''
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                    <svg
+                      xmlns='http://www.w3.org/2000/svg'
+                      className='h-4 w-4'
+                      viewBox='0 0 20 20'
+                      fill='currentColor'
+                    >
+                      <path
+                        fillRule='evenodd'
+                        d='M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z'
+                        clipRule='evenodd'
+                      />
                     </svg>
                   </button>
                   <button
                     onClick={() => handleMoveGroup(group.id, 'down')}
                     disabled={index === testGroups.length - 1}
-                    className={`p-1 rounded hover:bg-gray-200 ${
-                      index === testGroups.length - 1 ? 'opacity-50 cursor-not-allowed' : ''
+                    className={`rounded p-1 hover:bg-gray-200 ${
+                      index === testGroups.length - 1 ? 'cursor-not-allowed opacity-50' : ''
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <svg
+                      xmlns='http://www.w3.org/2000/svg'
+                      className='h-4 w-4'
+                      viewBox='0 0 20 20'
+                      fill='currentColor'
+                    >
+                      <path
+                        fillRule='evenodd'
+                        d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'
+                        clipRule='evenodd'
+                      />
                     </svg>
                   </button>
                 </div>
@@ -632,8 +737,24 @@ const Tests = () => {
 
         {/* Packages List */}
         <div className='rounded-lg bg-white p-4 shadow'>
-          <div className='flex items-center justify-between mb-4'>
-            <h2 className='text-lg font-medium text-gray-900'>Paketler</h2>
+          <div className='mb-4 flex items-center justify-between'>
+            <div className='flex items-center'>
+              <h2 className='mr-4 text-lg font-medium text-gray-900'>Paketler</h2>
+              <select
+                className='rounded-md border border-gray-300 p-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                value={`${packageSortBy}-${packageSortOrder}`}
+                onChange={handlePackageSortChange}
+              >
+                <option value='createdAt-desc'>En Yeni</option>
+                <option value='createdAt-asc'>En Eski</option>
+                <option value='name-asc'>İsim (A-Z)</option>
+                <option value='name-desc'>İsim (Z-A)</option>
+                <option value='price-asc'>Fiyat (Düşük-Yüksek)</option>
+                <option value='price-desc'>Fiyat (Yüksek-Düşük)</option>
+                <option value='testsCount-asc'>Test Sayısı (Az-Çok)</option>
+                <option value='testsCount-desc'>Test Sayısı (Çok-Az)</option>
+              </select>
+            </div>
             <button
               onClick={() => setIsPackageModalOpen(true)}
               className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
@@ -642,14 +763,59 @@ const Tests = () => {
             </button>
           </div>
           <div className='grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4'>
-            {packages.map((pkg) => (
+            {packages.map((pkg, index) => (
               <div key={pkg.id} className='group relative rounded-lg border border-gray-200 p-3'>
+                <div className='mb-2 flex items-center justify-between'>
+                  <div className='flex items-center space-x-1'>
+                    <button
+                      onClick={() => handleMovePackage(pkg.id, 'up')}
+                      disabled={index === 0}
+                      className={`rounded p-1 hover:bg-gray-200 ${
+                        index === 0 ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
+                    >
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        className='h-4 w-4'
+                        viewBox='0 0 20 20'
+                        fill='currentColor'
+                      >
+                        <path
+                          fillRule='evenodd'
+                          d='M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z'
+                          clipRule='evenodd'
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleMovePackage(pkg.id, 'down')}
+                      disabled={index === packages.length - 1}
+                      className={`rounded p-1 hover:bg-gray-200 ${
+                        index === packages.length - 1 ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
+                    >
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        className='h-4 w-4'
+                        viewBox='0 0 20 20'
+                        fill='currentColor'
+                      >
+                        <path
+                          fillRule='evenodd'
+                          d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'
+                          clipRule='evenodd'
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <span className='text-xs font-medium text-gray-500'>#{index + 1}</span>
+                </div>
                 <div className='aspect-w-16 aspect-h-9 mb-2 overflow-hidden rounded-lg bg-gray-100'>
                   {pkg.image ? (
                     <img
                       src={pkg.image}
                       alt={pkg.name}
-                      className='h-60 w-60 object-contain mx-auto'
+                      className='mx-auto h-60 w-60 object-contain'
                     />
                   ) : (
                     <div className='flex h-full items-center justify-center bg-gray-100'>
@@ -665,7 +831,7 @@ const Tests = () => {
                       <p className='text-xs font-medium text-blue-600'>{pkg.price} TL</p>
                     )}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className='flex space-x-2'>
                     <input
                       type='file'
                       accept='image/*'
@@ -675,29 +841,52 @@ const Tests = () => {
                     />
                     <label
                       htmlFor={`package-image-${pkg.id}`}
-                      className='text-gray-600 hover:text-gray-900 cursor-pointer'
-                      title="Görsel Yükle"
+                      className='cursor-pointer text-gray-600 hover:text-gray-900'
+                      title='Görsel Yükle'
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        className='h-4 w-4'
+                        viewBox='0 0 20 20'
+                        fill='currentColor'
+                      >
+                        <path
+                          fillRule='evenodd'
+                          d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z'
+                          clipRule='evenodd'
+                        />
                       </svg>
                     </label>
                     <button
                       onClick={() => handleEditPackage(pkg)}
                       className='text-blue-600 hover:text-blue-900'
-                      title="Düzenle"
+                      title='Düzenle'
                     >
-                      <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        className='h-4 w-4'
+                        viewBox='0 0 20 20'
+                        fill='currentColor'
+                      >
                         <path d='M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z' />
                       </svg>
                     </button>
                     <button
                       onClick={() => handleDeletePackage(pkg.id)}
                       className='text-red-600 hover:text-red-900'
-                      title="Sil"
+                      title='Sil'
                     >
-                      <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' viewBox='0 0 20 20' fill='currentColor'>
-                        <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        className='h-4 w-4'
+                        viewBox='0 0 20 20'
+                        fill='currentColor'
+                      >
+                        <path
+                          fillRule='evenodd'
+                          d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z'
+                          clipRule='evenodd'
+                        />
                       </svg>
                     </button>
                   </div>
@@ -801,7 +990,7 @@ const Tests = () => {
                   type='text'
                   value={newGroupTitle}
                   onChange={(e) => setNewGroupTitle(e.target.value)}
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   required
                 />
               </div>
@@ -827,7 +1016,7 @@ const Tests = () => {
 
       {/* Package Modal */}
       {isPackageModalOpen && (
-        <div className='fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50'>
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm'>
           <div className='w-full max-w-2xl rounded-lg bg-white p-6'>
             <h2 className='mb-4 text-lg font-medium'>Yeni Paket Ekle</h2>
             <form onSubmit={handleAddPackage} className='space-y-4'>
@@ -837,7 +1026,7 @@ const Tests = () => {
                   type='text'
                   value={newPackageName}
                   onChange={(e) => setNewPackageName(e.target.value)}
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   required
                 />
               </div>
@@ -848,14 +1037,14 @@ const Tests = () => {
                   value={testSearchTerm}
                   onChange={(e) => setTestSearchTerm(e.target.value)}
                   placeholder='Test adı ile arama yapın...'
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                 />
               </div>
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2'>Testler</label>
+                <label className='mb-2 block text-sm font-medium text-gray-700'>Testler</label>
                 <div className='max-h-60 overflow-y-auto rounded-md border border-gray-300 p-2'>
                   {tests
-                    .filter(test => 
+                    .filter((test) =>
                       test.name.toLowerCase().includes(testSearchTerm.toLowerCase())
                     )
                     .map((test) => (
@@ -863,18 +1052,21 @@ const Tests = () => {
                         <input
                           type='checkbox'
                           id={`new-package-test-${test.id}`}
-                          checked={newPackageTests.some(t => t.id === test.id)}
+                          checked={newPackageTests.some((t) => t.id === test.id)}
                           onChange={() => {
-                            const isSelected = newPackageTests.some(t => t.id === test.id);
+                            const isSelected = newPackageTests.some((t) => t.id === test.id);
                             if (isSelected) {
-                              setNewPackageTests(prev => prev.filter(t => t.id !== test.id));
+                              setNewPackageTests((prev) => prev.filter((t) => t.id !== test.id));
                             } else {
-                              setNewPackageTests(prev => [...prev, test]);
+                              setNewPackageTests((prev) => [...prev, test]);
                             }
                           }}
                           className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                         />
-                        <label htmlFor={`new-package-test-${test.id}`} className='text-sm text-gray-700'>
+                        <label
+                          htmlFor={`new-package-test-${test.id}`}
+                          className='text-sm text-gray-700'
+                        >
                           {test.name} - {test.basePrice} TL
                         </label>
                       </div>
@@ -882,12 +1074,14 @@ const Tests = () => {
                 </div>
               </div>
               <div>
-                <label className='block text-sm font-medium text-gray-700'>Hesaplanan Fiyat (TL)</label>
+                <label className='block text-sm font-medium text-gray-700'>
+                  Hesaplanan Fiyat (TL)
+                </label>
                 <input
                   type='number'
                   value={newPackageTests.reduce((sum, test) => sum + (test.basePrice || 0), 0)}
                   readOnly
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm bg-gray-50'
+                  className='mt-1 block w-full rounded-md border-gray-300 bg-gray-50 p-2 shadow-sm outline-none focus:ring-1'
                 />
               </div>
               <div>
@@ -896,8 +1090,8 @@ const Tests = () => {
                   type='number'
                   value={newPackagePrice}
                   onChange={(e) => setNewPackagePrice(e.target.value)}
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
-                  placeholder="Özel fiyat giriniz"
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                  placeholder='Özel fiyat giriniz'
                 />
               </div>
               <div className='flex justify-end space-x-3'>
@@ -928,30 +1122,35 @@ const Tests = () => {
 
       {/* Package Edit Modal */}
       {isEditPackageModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Paket Düzenle</h3>
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm'>
+          <div className='w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg'>
+            <div className='mb-4 flex items-center justify-between'>
+              <h3 className='text-lg font-medium text-gray-900'>Paket Düzenle</h3>
               <button
                 onClick={() => setIsEditPackageModalOpen(false)}
-                className="text-gray-400 hover:text-gray-500"
+                className='text-gray-400 hover:text-gray-500'
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M6 18L18 6M6 6l12 12'
+                  />
                 </svg>
               </button>
             </div>
-            <div className="space-y-4">
+            <div className='space-y-4'>
               <div>
-                <label htmlFor="packageName" className="block text-sm font-medium text-gray-700">
+                <label htmlFor='packageName' className='block text-sm font-medium text-gray-700'>
                   Paket Adı
                 </label>
                 <input
-                  type="text"
-                  id="packageName"
+                  type='text'
+                  id='packageName'
                   value={packageForm.name}
-                  onChange={(e) => setPackageForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => setPackageForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className='mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none'
                 />
               </div>
               <div>
@@ -961,28 +1160,26 @@ const Tests = () => {
                   value={testSearchTerm}
                   onChange={(e) => setTestSearchTerm(e.target.value)}
                   placeholder='Test adı ile arama yapın...'
-                  className='mt-1 block w-full p-2 outline-none focus:ring-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                  className='mt-1 block w-full rounded-md border-gray-300 p-2 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Testler
-                </label>
-                <div className="max-h-60 overflow-y-auto rounded-md border border-gray-300 p-2">
+                <label className='mb-2 block text-sm font-medium text-gray-700'>Testler</label>
+                <div className='max-h-60 overflow-y-auto rounded-md border border-gray-300 p-2'>
                   {tests
-                    .filter(test => 
+                    .filter((test) =>
                       test.name.toLowerCase().includes(testSearchTerm.toLowerCase())
                     )
                     .map((test) => (
-                      <div key={test.id} className="flex items-center space-x-2 py-1">
+                      <div key={test.id} className='flex items-center space-x-2 py-1'>
                         <input
-                          type="checkbox"
+                          type='checkbox'
                           id={`test-${test.id}`}
-                          checked={packageForm.tests.some(t => t.id === test.id)}
+                          checked={packageForm.tests.some((t) => t.id === test.id)}
                           onChange={() => handlePackageTestChange(test)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                         />
-                        <label htmlFor={`test-${test.id}`} className="text-sm text-gray-700">
+                        <label htmlFor={`test-${test.id}`} className='text-sm text-gray-700'>
                           {test.name} - {test.basePrice} TL
                         </label>
                       </div>
@@ -990,37 +1187,39 @@ const Tests = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Hesaplanan Fiyat (TL)</label>
+                <label className='block text-sm font-medium text-gray-700'>
+                  Hesaplanan Fiyat (TL)
+                </label>
                 <input
-                  type="number"
+                  type='number'
                   value={packageForm.tests.reduce((sum, test) => sum + (test.basePrice || 0), 0)}
                   readOnly
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm bg-gray-50"
+                  className='mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 shadow-sm'
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Paket Fiyatı (TL)</label>
+                <label className='block text-sm font-medium text-gray-700'>Paket Fiyatı (TL)</label>
                 <input
-                  type="number"
+                  type='number'
                   value={packageForm.price}
-                  onChange={(e) => setPackageForm(prev => ({ ...prev, price: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Özel fiyat giriniz"
+                  onChange={(e) => setPackageForm((prev) => ({ ...prev, price: e.target.value }))}
+                  className='mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none'
+                  placeholder='Özel fiyat giriniz'
                 />
               </div>
-              <div className="flex justify-end space-x-3">
+              <div className='flex justify-end space-x-3'>
                 <button
                   onClick={() => {
                     setIsEditPackageModalOpen(false);
                     setTestSearchTerm('');
                   }}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className='rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
                 >
                   İptal
                 </button>
                 <button
                   onClick={handleUpdatePackage}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  className='rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
                 >
                   Güncelle
                 </button>
@@ -1033,4 +1232,4 @@ const Tests = () => {
   );
 };
 
-export default Tests; 
+export default Tests;

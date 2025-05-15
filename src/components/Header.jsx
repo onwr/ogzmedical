@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState } from 'react';
 
 const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => {
   const [patientInfo, setPatientInfo] = useState({
@@ -8,60 +8,63 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
     tcNo: initialValues.tcNo || '',
     gender: initialValues.gender || '',
     photo: initialValues.photo || '',
-    extraPhoto: initialValues.extraPhoto || ''
-  })
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadingType, setUploadingType] = useState(null)
+    extraPhoto: initialValues.extraPhoto || '',
+  });
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadingType, setUploadingType] = useState(null);
 
   const handleChange = (e) => {
-    const { name, value } = e.target
-    const newPatientInfo = { ...patientInfo, [name]: value }
-    setPatientInfo(newPatientInfo)
-    onPatientInfoChange(newPatientInfo)
-  }
+    const { name, value } = e.target;
+    const newPatientInfo = { ...patientInfo, [name]: value };
+    setPatientInfo(newPatientInfo);
+    onPatientInfoChange(newPatientInfo);
+  };
 
   const handlePhotoUpload = async (e, type) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const file = e.target.files[0];
+    if (!file) return;
 
     try {
-      setIsUploading(true)
-      setUploadingType(type)
-      const formData = new FormData()
-      formData.append('image', file)
+      setIsUploading(true);
+      setUploadingType(type);
+      const formData = new FormData();
+      formData.append('image', file);
 
-      const response = await fetch('https://api.imgbb.com/1/upload?key=48e17415bdf865ecc15389b796c9ec79', {
-        method: 'POST',
-        body: formData
-      })
+      const response = await fetch(
+        'https://api.imgbb.com/1/upload?key=48e17415bdf865ecc15389b796c9ec79',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
 
-      const data = await response.json()
+      const data = await response.json();
       if (data.success) {
-        const newPatientInfo = { ...patientInfo, [type]: data.data.url }
-        setPatientInfo(newPatientInfo)
-        onPatientInfoChange(newPatientInfo)
+        const newPatientInfo = { ...patientInfo, [type]: data.data.url };
+        setPatientInfo(newPatientInfo);
+        onPatientInfoChange(newPatientInfo);
       }
     } catch (error) {
-      console.error('Error uploading photo:', error)
-      alert('Fotoğraf yüklenirken bir hata oluştu')
+      console.error('Error uploading photo:', error);
+      alert('Fotoğraf yüklenirken bir hata oluştu');
     } finally {
-      setIsUploading(false)
-      setUploadingType(null)
+      setIsUploading(false);
+      setUploadingType(null);
     }
-  }
+  };
 
   const removePhoto = (type) => {
-    const newPatientInfo = { ...patientInfo, [type]: '' }
-    setPatientInfo(newPatientInfo)
-    onPatientInfoChange(newPatientInfo)
-  }
+    const newPatientInfo = { ...patientInfo, [type]: '' };
+    setPatientInfo(newPatientInfo);
+    onPatientInfoChange(newPatientInfo);
+  };
 
   return (
     <div>
       <p className='text-md mt-2 ml-2 font-bold'>TIBBİ TAHLİLLER İSTEM FORMU</p>
       <div className='rounded-lg bg-white px-2 pb-1'>
         <div className='flex items-center justify-between gap-1'>
-          <div className={`transition-all duration-300 ${patientInfo.name ? 'w-[35%]' : 'w-[25%]'}`}>
+          <div className='w-[30%]'>
             <input
               type='text'
               name='name'
@@ -72,7 +75,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               required
             />
           </div>
-          <div className={`transition-all duration-300 ${patientInfo.birthDate ? 'w-[15%]' : 'w-[20%]'}`}>
+          <div className='w-[15%]'>
             <input
               type='text'
               name='birthDate'
@@ -82,7 +85,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               placeholder='Doğum Tarihi'
             />
           </div>
-          <div className={`transition-all duration-300 ${patientInfo.requestDate ? 'w-[15%]' : 'w-[20%]'}`}>
+          <div className='w-[15%]'>
             <input
               type='date'
               name='requestDate'
@@ -91,7 +94,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               className='w-full rounded border border-gray-300 px-1 py-1 text-[8px] md:text-xs'
             />
           </div>
-          <div className={`transition-all duration-300 ${patientInfo.tcNo ? 'w-[8%]' : 'w-[10%]'}`}>
+          <div className='w-[15%]'>
             <input
               type='text'
               name='tcNo'
@@ -101,7 +104,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               placeholder='T.C. Kimlik No'
             />
           </div>
-          <div className={`transition-all duration-300 ${patientInfo.gender ? 'w-[5%]' : 'w-[10%]'}`}>
+          <div className='w-[10%]'>
             <select
               name='gender'
               value={patientInfo.gender}
@@ -113,7 +116,7 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
               <option value='kadın'>K</option>
             </select>
           </div>
-          <div className='flex w-[10%] items-center justify-center gap-1'>
+          <div className='flex w-[15%] items-center justify-center gap-1'>
             {/* Evrak Yükle */}
             <div className='relative'>
               <input
@@ -166,6 +169,6 @@ const Header = ({ onPatientInfoChange, initialValues = {}, setIsModalOpen }) => 
       </div>
     </div>
   );
-}
+};
 
-export default Header
+export default Header;
