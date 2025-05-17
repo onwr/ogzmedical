@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeIcon,
   ClipboardDocumentListIcon,
@@ -20,7 +20,8 @@ import {
   doc,
   updateDoc,
 } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { signOut } from 'firebase/auth';
+import { db, auth } from '../../config/firebase';
 import Cookies from 'js-cookie';
 
 const navigation = [
@@ -58,6 +59,20 @@ const AdminLayout = ({ children }) => {
     return savedCount ? parseInt(savedCount) : 0;
   });
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Clear all cookies
+      Cookies.remove(NOTIFICATIONS_COOKIE);
+      Cookies.remove(UNREAD_COUNT_COOKIE);
+      // Redirect to login page
+      navigate('/admin/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   // Save notifications to cookie whenever they change
   useEffect(() => {
@@ -199,9 +214,7 @@ const AdminLayout = ({ children }) => {
           <div className='border-t p-4'>
             <button
               className='flex w-full items-center rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50'
-              onClick={() => {
-                /* Add logout logic */
-              }}
+              onClick={handleLogout}
             >
               <ArrowLeftOnRectangleIcon className='mr-3 h-5 w-5' />
               Çıkış Yap
